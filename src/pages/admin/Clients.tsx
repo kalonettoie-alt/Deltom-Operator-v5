@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Search, Mail, Phone, Building2, ClipboardList } from 'lucide-react';
+import { Users, Search, Mail, Phone, Building2, ClipboardList, TrendingUp, CheckCircle, Receipt } from 'lucide-react';
 import { useClients } from '../../hooks/useProfiles';
 import { supabase } from '../../config/supabase';
 import { Loader } from '../../components/ui/Loader';
@@ -9,12 +9,19 @@ import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import type { Profile, Logement, InterventionWithRelations } from '../../types';
 
+interface ClientStats {
+  totalInterventions: number;
+  interventionsTerminees: number;
+  totalFacture: number;
+}
+
 export function AdminClients() {
   const { clients, isLoading } = useClients();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<Profile | null>(null);
   const [clientLogements, setClientLogements] = useState<Logement[]>([]);
   const [clientInterventions, setClientInterventions] = useState<InterventionWithRelations[]>([]);
+  const [clientStats, setClientStats] = useState<ClientStats>({ totalInterventions: 0, interventionsTerminees: 0, totalFacture: 0 });
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Charger les données du client sélectionné
@@ -33,9 +40,34 @@ export function AdminClients() {
           .eq('client_id', selectedClient.id)
           .order('date', { ascending: false })
           .limit(10),
-      ]).then(([logementsRes, interventionsRes]) => {
+        // Stats: total interventions
+        supabase
+          .from('interventions')
+          .select('*', { count: 'exact', head: true })
+          .eq('client_id', selectedClient.id),
+        // Stats: terminées
+        supabase
+          .from('interventions')
+          .select('*', { count: 'exact', head: true })
+          .eq('client_id', selectedClient.id)
+          .eq('status', 'terminee'),
+        // Stats: total facturé
+        supabase
+          .from('interventions')
+          .select('prix_client_ttc')
+          .eq('client_id', selectedClient.id)
+          .eq('status', 'terminee'),
+      ]).then(([logementsRes, interventionsRes, totalRes, termineesRes, factureRes]) => {
         setClientLogements((logementsRes.data as Logement[]) || []);
         setClientInterventions((interventionsRes.data as InterventionWithRelations[]) || []);
+        const totalFacture = (factureRes.data as { prix_client_ttc: number }[] || []).reduce(
+          (sum, i) => sum + (i.prix_client_ttc || 0), 0
+        );
+        setClientStats({
+          totalInterventions: totalRes.count || 0,
+          interventionsTerminees: termineesRes.count || 0,
+          totalFacture,
+        });
         setIsLoadingDetails(false);
       });
     }
@@ -142,6 +174,25 @@ export function AdminClients() {
               </div>
             ) : (
               <>
+                {/* Statistiques */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4 text-center">
+                    <TrendingUp className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-blue-900">{clientStats.totalInterventions}</p>
+                    <p className="text-sm text-blue-600">Interventions totales</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4 text-center">
+                    <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-green-900">{clientStats.interventionsTerminees}</p>
+                    <p className="text-sm text-green-600">Terminées</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-4 text-center">
+                    <Receipt className="w-6 h-6 text-purple-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-purple-900">{clientStats.totalFacture.toFixed(0)}€</p>
+                    <p className="text-sm text-purple-600">Total facturé TTC</p>
+                  </div>
+                </div>
+
                 {/* Logements */}
                 <div>
                   <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-3">

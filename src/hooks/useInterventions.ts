@@ -31,7 +31,8 @@ export function useInterventions(options: UseInterventionsOptions = {}) {
           ? `*,
              logement:logements(*),
              client:profiles!interventions_client_id_fkey(*),
-             prestataire:profiles!interventions_prestataire_id_fkey(*)`
+             prestataire:profiles!interventions_prestataire_id_fkey(*),
+             rapport:rapports(*)`
           : '*'
       );
 

@@ -15,7 +15,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
             <Home className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-lg text-gray-900">CleanManager</span>
+          <span className="font-bold text-lg text-gray-900">Deltom Operator</span>
         </div>
 
         <div className="flex items-center gap-3">
