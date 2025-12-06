@@ -20,8 +20,12 @@ export function ProviderPlanning() {
     prestataireId: profile?.id,
     withRelations: true,
   });
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  const [currentDate, setCurrentDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState<string | null>(todayStr);
 
   // Obtenir le premier jour du mois et le nombre de jours
   const { firstDayOfMonth, daysInMonth, year, month } = useMemo(() => {
@@ -58,8 +62,9 @@ export function ProviderPlanning() {
   };
 
   const goToToday = () => {
-    setCurrentDate(new Date());
-    setSelectedDate(null);
+    const now = new Date();
+    setCurrentDate(now);
+    setSelectedDate(now.toISOString().split('T')[0]);
   };
 
   // Générer les jours du calendrier
@@ -80,8 +85,7 @@ export function ProviderPlanning() {
 
   const isToday = (dateStr: string | null) => {
     if (!dateStr) return false;
-    const today = new Date().toISOString().split('T')[0];
-    return dateStr === today;
+    return dateStr === todayStr;
   };
 
   if (isLoading) {

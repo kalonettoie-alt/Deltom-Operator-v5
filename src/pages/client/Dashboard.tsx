@@ -3,10 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useLogements } from '../../hooks/useLogements';
 import { useInterventions } from '../../hooks/useInterventions';
-import { Building2, ClipboardList, CheckCircle } from 'lucide-react';
+import { Building2, ClipboardList, CheckCircle, Euro } from 'lucide-react';
 import { Loader } from '../../components/ui/Loader';
-import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { getClientStatus, ClientStatusLabels } from '../../types';
+
+// Composant badge simplifié pour les clients
+function ClientStatusBadge({ status }: { status: 'a_venir' | 'en_cours' | 'terminee' }) {
+  const colors: Record<string, string> = {
+    a_venir: 'bg-blue-100 text-blue-800',
+    en_cours: 'bg-purple-100 text-purple-800',
+    terminee: 'bg-green-100 text-green-800',
+  };
+
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[status]}`}>
+      {ClientStatusLabels[status]}
+    </span>
+  );
+}
 
 export function ClientDashboard() {
   const navigate = useNavigate();
@@ -23,27 +38,41 @@ export function ClientDashboard() {
 
   // Calculer les stats
   const stats = useMemo(() => {
+    // Interventions en cours (acceptee, en_cours)
     const enCours = interventions.filter(
       (i) => i.status === 'en_cours' || i.status === 'acceptee'
     );
 
+    // Interventions terminées ce mois
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
     const completedThisMonth = interventions.filter((i) => {
       const date = new Date(i.date);
       return date >= startOfMonth && i.status === 'terminee';
     });
 
+    // Facture du mois (somme des prix client TTC des interventions terminées du mois)
+    const factureMonth = completedThisMonth.reduce(
+      (sum, i) => sum + (i.prix_client_ttc || 0),
+      0
+    );
+
     return {
       logements: logements.length,
       enCours: enCours.length,
       completedMonth: completedThisMonth.length,
+      factureMonth,
     };
   }, [logements, interventions]);
 
-  // Prochaines interventions
+  // Prochaines interventions (exclure a_attribuer et refusee du point de vue client)
   const upcomingInterventions = interventions
-    .filter((i) => i.date >= today && i.status !== 'terminee')
+    .filter((i) => {
+      const clientStatus = getClientStatus(i.status);
+      return i.date >= today && clientStatus !== 'terminee';
+    })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 5);
 
@@ -73,7 +102,7 @@ export function ClientDashboard() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div
           className="card cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => navigate('/client/logements')}
@@ -115,6 +144,19 @@ export function ClientDashboard() {
             </div>
           </div>
         </div>
+
+        <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-purple-200 rounded-xl">
+              <Euro className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm text-purple-600">Facture du mois</p>
+              <p className="text-2xl font-bold text-purple-900">{stats.factureMonth.toFixed(2)}€</p>
+              <p className="text-xs text-purple-500">{stats.completedMonth} intervention(s)</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Prochaines interventions */}
@@ -131,32 +173,30 @@ export function ClientDashboard() {
           />
         ) : (
           <div className="space-y-3">
-            {upcomingInterventions.map((intervention) => (
-              <div
-                key={intervention.id}
-                className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                onClick={() => navigate('/client/interventions')}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-gray-900">
-                        {formatDate(intervention.date)}
-                      </span>
-                      <StatusBadge status={intervention.status} />
+            {upcomingInterventions.map((intervention) => {
+              const clientStatus = getClientStatus(intervention.status);
+              return (
+                <div
+                  key={intervention.id}
+                  className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                  onClick={() => navigate('/client/interventions')}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-gray-900">
+                          {formatDate(intervention.date)}
+                        </span>
+                        <ClientStatusBadge status={clientStatus} />
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {intervention.logement?.name} - {intervention.logement?.city}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600">
-                      {intervention.logement?.name} - {intervention.logement?.city}
-                    </p>
                   </div>
-                  {intervention.prestataire && (
-                    <p className="text-sm text-gray-500">
-                      {intervention.prestataire.full_name}
-                    </p>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

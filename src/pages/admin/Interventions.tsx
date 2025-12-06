@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, Search, Filter } from 'lucide-react';
+import { Plus, ClipboardList, Search, Filter, X } from 'lucide-react';
 import { useInterventions } from '../../hooks/useInterventions';
 import { useLogements } from '../../hooks/useLogements';
 import { usePrestataires } from '../../hooks/useProfiles';
@@ -12,6 +12,8 @@ import { InterventionForm } from '../../components/forms/InterventionForm';
 import { InterventionStatusLabels } from '../../types';
 import type { Intervention, InterventionInsert, InterventionStatus } from '../../types';
 
+type PeriodFilter = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom';
+
 export function AdminInterventions() {
   const navigate = useNavigate();
   const { interventions, isLoading, createIntervention, updateIntervention, deleteIntervention } =
@@ -22,9 +24,56 @@ export function AdminInterventions() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Filtres
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<InterventionStatus | ''>('');
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
+  const [customDateStart, setCustomDateStart] = useState('');
+  const [customDateEnd, setCustomDateEnd] = useState('');
+  const [logementFilter, setLogementFilter] = useState('');
+
+  // Calculer les dates de période
+  const periodDates = useMemo(() => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
+    switch (periodFilter) {
+      case 'today':
+        return { start: todayStr, end: todayStr };
+      case 'this_week': {
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay() + 1);
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        return {
+          start: startOfWeek.toISOString().split('T')[0],
+          end: endOfWeek.toISOString().split('T')[0],
+        };
+      }
+      case 'this_month': {
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        return {
+          start: startOfMonth.toISOString().split('T')[0],
+          end: endOfMonth.toISOString().split('T')[0],
+        };
+      }
+      case 'last_month': {
+        const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        return {
+          start: startOfLastMonth.toISOString().split('T')[0],
+          end: endOfLastMonth.toISOString().split('T')[0],
+        };
+      }
+      case 'custom':
+        return { start: customDateStart, end: customDateEnd };
+      default:
+        return { start: '', end: '' };
+    }
+  }, [periodFilter, customDateStart, customDateEnd]);
 
   const handleCreate = () => {
     setEditingIntervention(null);
@@ -71,18 +120,46 @@ export function AdminInterventions() {
     navigate(`/admin/interventions/${id}`);
   };
 
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setPeriodFilter('all');
+    setCustomDateStart('');
+    setCustomDateEnd('');
+    setLogementFilter('');
+  };
+
+  const hasActiveFilters = searchTerm || statusFilter || periodFilter !== 'all' || logementFilter;
+
   // Filtrer les interventions
-  const filteredInterventions = interventions.filter((i) => {
-    const matchesSearch =
-      i.logement?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      i.logement?.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      i.client?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      i.prestataire?.full_name.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredInterventions = useMemo(() => {
+    return interventions.filter((i) => {
+      // Filtre recherche
+      const matchesSearch = !searchTerm ||
+        i.logement?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        i.logement?.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        i.client?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        i.prestataire?.full_name.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = !statusFilter || i.status === statusFilter;
+      // Filtre statut
+      const matchesStatus = !statusFilter || i.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
-  });
+      // Filtre période
+      let matchesPeriod = true;
+      if (periodDates.start && periodDates.end) {
+        matchesPeriod = i.date >= periodDates.start && i.date <= periodDates.end;
+      } else if (periodDates.start) {
+        matchesPeriod = i.date >= periodDates.start;
+      } else if (periodDates.end) {
+        matchesPeriod = i.date <= periodDates.end;
+      }
+
+      // Filtre logement
+      const matchesLogement = !logementFilter || i.logement_id === logementFilter;
+
+      return matchesSearch && matchesStatus && matchesPeriod && matchesLogement;
+    });
+  }, [interventions, searchTerm, statusFilter, periodDates, logementFilter]);
 
   if (isLoading) {
     return (
@@ -107,24 +184,46 @@ export function AdminInterventions() {
 
       {/* Filtres */}
       {interventions.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher par logement, client ou prestataire..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-10"
-            />
+        <div className="card mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filtres
+            </h3>
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
+              >
+                <X className="w-4 h-4" />
+                Réinitialiser
+              </button>
+            )}
           </div>
-          <div className="sm:w-48">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* Recherche */}
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Logement, client ou prestataire..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="input-field pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Statut */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as InterventionStatus | '')}
-                className="input-field pl-10"
+                className="input-field"
               >
                 <option value="">Tous les statuts</option>
                 {Object.entries(InterventionStatusLabels).map(([value, label]) => (
@@ -134,7 +233,73 @@ export function AdminInterventions() {
                 ))}
               </select>
             </div>
+
+            {/* Logement */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Logement</label>
+              <select
+                value={logementFilter}
+                onChange={(e) => setLogementFilter(e.target.value)}
+                className="input-field"
+              >
+                <option value="">Tous les logements</option>
+                {logements.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} - {l.city}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Période */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Période</label>
+              <select
+                value={periodFilter}
+                onChange={(e) => setPeriodFilter(e.target.value as PeriodFilter)}
+                className="input-field"
+              >
+                <option value="all">Toutes les dates</option>
+                <option value="today">Aujourd'hui</option>
+                <option value="this_week">Cette semaine</option>
+                <option value="this_month">Ce mois-ci</option>
+                <option value="last_month">Mois dernier</option>
+                <option value="custom">Personnalisé</option>
+              </select>
+            </div>
+
+            {/* Dates personnalisées */}
+            {periodFilter === 'custom' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date début</label>
+                  <input
+                    type="date"
+                    value={customDateStart}
+                    onChange={(e) => setCustomDateStart(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date fin</label>
+                  <input
+                    type="date"
+                    value={customDateEnd}
+                    onChange={(e) => setCustomDateEnd(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+              </>
+            )}
           </div>
+
+          {hasActiveFilters && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                {filteredInterventions.length} intervention(s) trouvée(s)
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -155,6 +320,11 @@ export function AdminInterventions() {
           icon={<Search className="w-6 h-6 text-gray-400" />}
           title="Aucun résultat"
           description="Aucune intervention ne correspond à vos critères."
+          action={
+            <button onClick={resetFilters} className="btn-secondary">
+              Réinitialiser les filtres
+            </button>
+          }
         />
       ) : (
         <div className="grid gap-4">

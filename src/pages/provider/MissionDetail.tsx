@@ -1,21 +1,28 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Calendar, Users, Baby, Clock, Key, FileText, Play, CheckCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, Baby, Clock, Key, FileText, Play, CheckCircle, AlertCircle } from 'lucide-react';
 import { useIntervention, useInterventions } from '../../hooks/useInterventions';
+import { useRapports } from '../../hooks/useRapports';
 import { Loader } from '../../components/ui/Loader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Modal } from '../../components/ui/Modal';
+import { ReportForm } from '../../components/forms/ReportForm';
 import { InterventionTypeLabels } from '../../types';
+import type { RapportInsert } from '../../types';
 
 export function ProviderMissionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { intervention, isLoading, error, refetch } = useIntervention(id || '');
-  const { startIntervention, completeIntervention } = useInterventions();
+  const { startIntervention } = useInterventions();
+  const { createRapport } = useRapports();
 
   const [isStarting, setIsStarting] = useState(false);
-  const [isCompleting, setIsCompleting] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  const today = new Date().toISOString().split('T')[0];
+  const isToday = intervention?.date === today;
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
@@ -37,7 +44,7 @@ export function ProviderMissionDetail() {
   };
 
   const handleStart = async () => {
-    if (!id) return;
+    if (!id || !isToday) return;
     setIsStarting(true);
     try {
       const { error } = await startIntervention(id);
@@ -51,19 +58,42 @@ export function ProviderMissionDetail() {
     }
   };
 
-  const handleComplete = async () => {
+  // Quand on clique sur "Terminer", on ouvre immédiatement le formulaire de rapport
+  const handleComplete = () => {
+    setShowReportModal(true);
+  };
+
+  // Soumettre le rapport (ce qui termine aussi l'intervention)
+  const handleSubmitReport = async (data: RapportInsert) => {
     if (!id) return;
-    setIsCompleting(true);
+    setIsSubmittingReport(true);
     try {
-      const { error } = await completeIntervention(id);
-      if (error) {
-        alert(error);
-      } else {
-        setShowReportModal(true);
-        refetch();
+      // 1. Créer le rapport
+      const { error: rapportError } = await createRapport(data);
+      if (rapportError) {
+        alert(rapportError);
+        return;
       }
+
+      // 2. Marquer l'intervention comme terminée
+      const { supabase } = await import('../../config/supabase');
+      const { error: updateError } = await supabase
+        .from('interventions')
+        .update({
+          status: 'terminee',
+          completed_at: new Date().toISOString(),
+        } as never)
+        .eq('id', id);
+
+      if (updateError) {
+        alert(updateError.message);
+        return;
+      }
+
+      setShowReportModal(false);
+      refetch();
     } finally {
-      setIsCompleting(false);
+      setIsSubmittingReport(false);
     }
   };
 
@@ -119,34 +149,39 @@ export function ProviderMissionDetail() {
               </h2>
               <p className="text-sm text-primary-700">
                 {intervention.status === 'acceptee'
-                  ? 'Cliquez sur le bouton pour démarrer la mission.'
+                  ? isToday
+                    ? 'Cliquez sur le bouton pour démarrer la mission.'
+                    : `Disponible le ${formatDate(intervention.date)}`
                   : 'Cliquez sur le bouton quand vous avez terminé.'}
               </p>
             </div>
             {intervention.status === 'acceptee' ? (
-              <button
-                onClick={handleStart}
-                disabled={isStarting}
-                className="btn-primary flex items-center gap-2"
-              >
-                {isStarting ? (
-                  <Loader size="sm" className="border-white border-t-transparent" />
-                ) : (
-                  <Play className="w-4 h-4" />
+              <div className="relative group">
+                <button
+                  onClick={handleStart}
+                  disabled={isStarting || !isToday}
+                  className={`btn-primary flex items-center gap-2 ${!isToday ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isStarting ? (
+                    <Loader size="sm" className="border-white border-t-transparent" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                  Commencer
+                </button>
+                {!isToday && (
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    <AlertCircle className="w-3 h-3 inline mr-1" />
+                    Disponible le jour de l'intervention
+                  </div>
                 )}
-                Commencer
-              </button>
+              </div>
             ) : (
               <button
                 onClick={handleComplete}
-                disabled={isCompleting}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 flex items-center gap-2"
               >
-                {isCompleting ? (
-                  <Loader size="sm" className="border-white border-t-transparent" />
-                ) : (
-                  <CheckCircle className="w-4 h-4" />
-                )}
+                <CheckCircle className="w-4 h-4" />
                 Terminer
               </button>
             )}
@@ -204,6 +239,11 @@ export function ProviderMissionDetail() {
                 <span>Équipement bébé requis</span>
               </div>
             )}
+            <div className="pt-2 border-t border-gray-100 mt-2">
+              <p className="text-primary-600 font-medium">
+                Rémunération: {intervention.prix_prestataire_ht}€ HT
+              </p>
+            </div>
           </div>
         </div>
 
@@ -249,43 +289,49 @@ export function ProviderMissionDetail() {
                   <span className="font-medium">Fin:</span> {formatDateTime(intervention.completed_at)}
                 </p>
               )}
+              {intervention.started_at && intervention.completed_at && (
+                <div className="pt-2 border-t border-gray-100 mt-2">
+                  <p className="text-primary-600 font-medium">
+                    <span className="text-gray-600">Temps de nettoyage:</span>{' '}
+                    {(() => {
+                      const start = new Date(intervention.started_at!);
+                      const end = new Date(intervention.completed_at!);
+                      const diffMs = end.getTime() - start.getTime();
+                      const diffMins = Math.floor(diffMs / (1000 * 60));
+                      const hours = Math.floor(diffMins / 60);
+                      const mins = diffMins % 60;
+                      if (hours > 0) {
+                        return `${hours}h ${mins}min`;
+                      }
+                      return `${mins}min`;
+                    })()}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Modal de rapport */}
+      {/* Modal de rapport obligatoire */}
       <Modal
         isOpen={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        title="Mission terminée !"
-        size="sm"
+        onClose={() => {}} // Empêcher la fermeture sans soumission
+        title="Rapport de fin de mission"
+        size="lg"
       >
-        <div className="text-center py-4">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <p className="text-gray-600 mb-6">
-            La mission a été marquée comme terminée. Vous pouvez maintenant soumettre votre rapport.
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800">
+            <AlertCircle className="w-4 h-4 inline mr-2" />
+            Le rapport est obligatoire pour terminer la mission. Ajoutez au moins une photo.
           </p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => setShowReportModal(false)}
-              className="btn-secondary"
-            >
-              Plus tard
-            </button>
-            <button
-              onClick={() => {
-                setShowReportModal(false);
-                // TODO: Naviguer vers le formulaire de rapport
-              }}
-              className="btn-primary"
-            >
-              Faire le rapport
-            </button>
-          </div>
         </div>
+        <ReportForm
+          interventionId={id || ''}
+          onSubmit={handleSubmitReport}
+          onCancel={() => {}} // Pas de bouton annuler visible
+          isSubmitting={isSubmittingReport}
+        />
       </Modal>
     </div>
   );

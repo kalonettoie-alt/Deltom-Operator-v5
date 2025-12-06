@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Loader } from '../ui/Loader';
-import { InterventionTypeLabels, InterventionStatusLabels } from '../../types';
+import { InterventionTypeLabels } from '../../types';
 import type {
   Intervention,
   InterventionInsert,
   Profile,
   LogementWithClient,
   InterventionType,
-  InterventionStatus,
 } from '../../types';
 
 interface InterventionFormProps {
@@ -33,27 +32,22 @@ export function InterventionForm({
     prestataire_id: string;
     date: string;
     type: InterventionType;
-    status: InterventionStatus;
     nb_voyageurs: number;
     has_baby: boolean;
     special_instructions: string;
-    prix_prestataire_ht: number;
-    prix_client_ttc: number;
   }>({
     logement_id: '',
     client_id: '',
     prestataire_id: '',
     date: new Date().toISOString().split('T')[0],
     type: 'standard',
-    status: 'a_attribuer',
     nb_voyageurs: 2,
     has_baby: false,
     special_instructions: '',
-    prix_prestataire_ht: 0,
-    prix_client_ttc: 0,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedLogement, setSelectedLogement] = useState<LogementWithClient | null>(null);
 
   useEffect(() => {
     if (intervention) {
@@ -63,15 +57,15 @@ export function InterventionForm({
         prestataire_id: intervention.prestataire_id || '',
         date: intervention.date,
         type: intervention.type,
-        status: intervention.status,
         nb_voyageurs: intervention.nb_voyageurs,
         has_baby: intervention.has_baby,
         special_instructions: intervention.special_instructions || '',
-        prix_prestataire_ht: intervention.prix_prestataire_ht,
-        prix_client_ttc: intervention.prix_client_ttc,
       });
+      // Trouver le logement sélectionné
+      const logement = logements.find(l => l.id === intervention.logement_id);
+      if (logement) setSelectedLogement(logement);
     }
-  }, [intervention]);
+  }, [intervention, logements]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -86,11 +80,14 @@ export function InterventionForm({
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
 
-      // Auto-select client when logement is selected
+      // Auto-select client when logement is selected et récupérer les prix
       if (name === 'logement_id') {
-        const selectedLogement = logements.find((l) => l.id === value);
-        if (selectedLogement) {
-          setFormData((prev) => ({ ...prev, client_id: selectedLogement.client_id }));
+        const logement = logements.find((l) => l.id === value);
+        if (logement) {
+          setFormData((prev) => ({ ...prev, client_id: logement.client_id }));
+          setSelectedLogement(logement);
+        } else {
+          setSelectedLogement(null);
         }
       }
     }
@@ -114,18 +111,35 @@ export function InterventionForm({
     e.preventDefault();
     if (!validate()) return;
 
+    // Déterminer le statut automatiquement
+    // Pour une nouvelle intervention : a_attribuer si pas de prestataire, assignee si prestataire
+    // Pour une modification : garder le statut actuel si l'intervention existe déjà
+    let status = intervention?.status;
+    if (!intervention) {
+      status = formData.prestataire_id ? 'assignee' : 'a_attribuer';
+    } else if (!intervention.prestataire_id && formData.prestataire_id) {
+      // On assigne un prestataire à une intervention qui n'en avait pas
+      status = 'assignee';
+    } else if (intervention.prestataire_id && !formData.prestataire_id) {
+      // On retire le prestataire
+      status = 'a_attribuer';
+    }
+
+    // Récupérer les prix depuis le logement
+    const logement = logements.find(l => l.id === formData.logement_id);
+
     await onSubmit({
       logement_id: formData.logement_id,
       client_id: formData.client_id,
       prestataire_id: formData.prestataire_id || null,
       date: formData.date,
       type: formData.type,
-      status: formData.status,
+      status: status,
       nb_voyageurs: formData.nb_voyageurs,
       has_baby: formData.has_baby,
       special_instructions: formData.special_instructions || null,
-      prix_prestataire_ht: formData.prix_prestataire_ht,
-      prix_client_ttc: formData.prix_client_ttc,
+      prix_prestataire_ht: logement?.prix_prestataire_ht || 0,
+      prix_client_ttc: logement?.prix_client_ttc || 0,
     });
   };
 
@@ -153,6 +167,17 @@ export function InterventionForm({
         </select>
         {errors.logement_id && <p className="text-red-500 text-sm mt-1">{errors.logement_id}</p>}
       </div>
+
+      {/* Affichage des prix du logement sélectionné */}
+      {selectedLogement && (
+        <div className="bg-gray-50 rounded-lg p-3 text-sm">
+          <p className="font-medium text-gray-700 mb-1">Prix par défaut du logement :</p>
+          <div className="flex gap-4 text-gray-600">
+            <span>Prestataire HT : {selectedLogement.prix_prestataire_ht ?? 0}€</span>
+            <span>Client TTC : {selectedLogement.prix_client_ttc ?? 0}€</span>
+          </div>
+        </div>
+      )}
 
       {/* Date et Type */}
       <div className="grid grid-cols-2 gap-4">
@@ -193,48 +218,31 @@ export function InterventionForm({
         </div>
       </div>
 
-      {/* Prestataire et Statut */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="prestataire_id" className="block text-sm font-medium text-gray-700 mb-1">
-            Prestataire
-          </label>
-          <select
-            id="prestataire_id"
-            name="prestataire_id"
-            value={formData.prestataire_id}
-            onChange={handleChange}
-            className="input-field"
-            disabled={isSubmitting}
-          >
-            <option value="">Non assigné</option>
-            {prestataires.map((prestataire) => (
-              <option key={prestataire.id} value={prestataire.id}>
-                {prestataire.full_name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-            Statut
-          </label>
-          <select
-            id="status"
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-            className="input-field"
-            disabled={isSubmitting}
-          >
-            {Object.entries(InterventionStatusLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Prestataire */}
+      <div>
+        <label htmlFor="prestataire_id" className="block text-sm font-medium text-gray-700 mb-1">
+          Prestataire
+        </label>
+        <select
+          id="prestataire_id"
+          name="prestataire_id"
+          value={formData.prestataire_id}
+          onChange={handleChange}
+          className="input-field"
+          disabled={isSubmitting}
+        >
+          <option value="">Non assigné (statut: À attribuer)</option>
+          {prestataires.map((prestataire) => (
+            <option key={prestataire.id} value={prestataire.id}>
+              {prestataire.full_name}
+            </option>
+          ))}
+        </select>
+        {formData.prestataire_id && (
+          <p className="text-xs text-orange-600 mt-1">
+            Le prestataire devra accepter cette mission
+          </p>
+        )}
       </div>
 
       {/* Voyageurs et bébé */}
@@ -269,43 +277,6 @@ export function InterventionForm({
           <label htmlFor="has_baby" className="ml-2 block text-sm text-gray-700">
             Lit bébé / équipement bébé
           </label>
-        </div>
-      </div>
-
-      {/* Prix */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="prix_prestataire_ht" className="block text-sm font-medium text-gray-700 mb-1">
-            Prix prestataire HT (€)
-          </label>
-          <input
-            type="number"
-            id="prix_prestataire_ht"
-            name="prix_prestataire_ht"
-            value={formData.prix_prestataire_ht}
-            onChange={handleChange}
-            min={0}
-            step="0.01"
-            className="input-field"
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="prix_client_ttc" className="block text-sm font-medium text-gray-700 mb-1">
-            Prix client TTC (€)
-          </label>
-          <input
-            type="number"
-            id="prix_client_ttc"
-            name="prix_client_ttc"
-            value={formData.prix_client_ttc}
-            onChange={handleChange}
-            min={0}
-            step="0.01"
-            className="input-field"
-            disabled={isSubmitting}
-          />
         </div>
       </div>
 

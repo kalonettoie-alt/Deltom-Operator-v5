@@ -81,6 +81,8 @@ export interface Logement {
   access_code: string | null;
   instructions: string | null;
   photos: string[];
+  prix_prestataire_ht: number | null;
+  prix_client_ttc: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -94,6 +96,8 @@ export interface LogementInsert {
   access_code?: string | null;
   instructions?: string | null;
   photos?: string[];
+  prix_prestataire_ht?: number | null;
+  prix_client_ttc?: number | null;
 }
 
 export interface LogementUpdate {
@@ -105,6 +109,8 @@ export interface LogementUpdate {
   access_code?: string | null;
   instructions?: string | null;
   photos?: string[];
+  prix_prestataire_ht?: number | null;
+  prix_client_ttc?: number | null;
 }
 
 // Logement avec le profil du client (pour les jointures)
@@ -130,6 +136,7 @@ export interface Intervention {
   prix_client_ttc: number;
   started_at: string | null;
   completed_at: string | null;
+  refused_by: string[];
   created_at: string;
   updated_at: string;
 }
@@ -146,6 +153,7 @@ export interface InterventionInsert {
   special_instructions?: string | null;
   prix_prestataire_ht?: number;
   prix_client_ttc?: number;
+  refused_by?: string[];
 }
 
 export interface InterventionUpdate {
@@ -162,6 +170,7 @@ export interface InterventionUpdate {
   prix_client_ttc?: number;
   started_at?: string | null;
   completed_at?: string | null;
+  refused_by?: string[];
 }
 
 // Intervention avec les relations (pour les jointures)

@@ -185,6 +185,25 @@ export function AdminInterventionDetail() {
                   <span className="font-medium">Fin:</span> {formatDateTime(intervention.completed_at)}
                 </p>
               )}
+              {intervention.started_at && intervention.completed_at && (
+                <div className="pt-2 border-t border-gray-100 mt-2">
+                  <p className="text-primary-600 font-medium">
+                    <span className="text-gray-600">Temps de nettoyage:</span>{' '}
+                    {(() => {
+                      const start = new Date(intervention.started_at!);
+                      const end = new Date(intervention.completed_at!);
+                      const diffMs = end.getTime() - start.getTime();
+                      const diffMins = Math.floor(diffMs / (1000 * 60));
+                      const hours = Math.floor(diffMins / 60);
+                      const mins = diffMins % 60;
+                      if (hours > 0) {
+                        return `${hours}h ${mins}min`;
+                      }
+                      return `${mins}min`;
+                    })()}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

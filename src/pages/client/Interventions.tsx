@@ -4,10 +4,27 @@ import { useAuth } from '../../hooks/useAuth';
 import { useInterventions } from '../../hooks/useInterventions';
 import { Loader } from '../../components/ui/Loader';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Modal } from '../../components/ui/Modal';
-import { InterventionStatusLabels, InterventionTypeLabels } from '../../types';
-import type { InterventionStatus, InterventionWithRelations } from '../../types';
+import { InterventionTypeLabels, getClientStatus, ClientStatusLabels } from '../../types';
+import type { InterventionWithRelations } from '../../types';
+
+// Statuts simplifiés côté client
+type ClientStatus = 'a_venir' | 'en_cours' | 'terminee';
+
+// Badge de statut simplifié pour les clients
+function ClientStatusBadge({ status }: { status: ClientStatus }) {
+  const colors: Record<ClientStatus, string> = {
+    a_venir: 'bg-blue-100 text-blue-800',
+    en_cours: 'bg-purple-100 text-purple-800',
+    terminee: 'bg-green-100 text-green-800',
+  };
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status]}`}>
+      {ClientStatusLabels[status]}
+    </span>
+  );
+}
 
 export function ClientInterventions() {
   const { profile } = useAuth();
@@ -17,13 +34,14 @@ export function ClientInterventions() {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<InterventionStatus | ''>('');
+  const [statusFilter, setStatusFilter] = useState<ClientStatus | ''>('');
   const [selectedIntervention, setSelectedIntervention] = useState<InterventionWithRelations | null>(null);
 
-  // Filtrer les interventions
+  // Filtrer les interventions avec les statuts simplifiés
   const filteredInterventions = interventions.filter((i) => {
     const matchesSearch = i.logement?.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !statusFilter || i.status === statusFilter;
+    const clientStatus = getClientStatus(i.status);
+    const matchesStatus = !statusFilter || clientStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -74,11 +92,11 @@ export function ClientInterventions() {
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as InterventionStatus | '')}
+                onChange={(e) => setStatusFilter(e.target.value as ClientStatus | '')}
                 className="input-field pl-10"
               >
                 <option value="">Tous les statuts</option>
-                {Object.entries(InterventionStatusLabels).map(([value, label]) => (
+                {Object.entries(ClientStatusLabels).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
@@ -114,7 +132,7 @@ export function ClientInterventions() {
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <span className="font-medium text-gray-900">{formatDate(intervention.date)}</span>
-                    <StatusBadge status={intervention.status} />
+                    <ClientStatusBadge status={getClientStatus(intervention.status)} />
                   </div>
                   <h3 className="font-semibold text-gray-900">{intervention.logement?.name}</h3>
                   <p className="text-sm text-gray-600">
@@ -162,7 +180,7 @@ export function ClientInterventions() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Statut</p>
-                <StatusBadge status={selectedIntervention.status} />
+                <ClientStatusBadge status={getClientStatus(selectedIntervention.status)} />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Type</p>
@@ -178,6 +196,13 @@ export function ClientInterventions() {
               <div>
                 <p className="text-sm text-gray-500">Prestataire</p>
                 <p className="font-medium">{selectedIntervention.prestataire.full_name}</p>
+              </div>
+            )}
+
+            {selectedIntervention.status === 'terminee' && selectedIntervention.prix_client_ttc && (
+              <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <p className="text-sm text-purple-600">Montant facturé</p>
+                <p className="text-xl font-bold text-purple-900">{selectedIntervention.prix_client_ttc.toFixed(2)}€ TTC</p>
               </div>
             )}
 

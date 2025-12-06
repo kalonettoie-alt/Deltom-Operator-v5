@@ -25,6 +25,8 @@ export function LogementForm({
     postal_code: '',
     access_code: '',
     instructions: '',
+    prix_prestataire_ht: null,
+    prix_client_ttc: null,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -39,6 +41,8 @@ export function LogementForm({
         postal_code: logement.postal_code,
         access_code: logement.access_code || '',
         instructions: logement.instructions || '',
+        prix_prestataire_ht: logement.prix_prestataire_ht,
+        prix_client_ttc: logement.prix_client_ttc,
       });
     }
   }, [logement]);
@@ -46,8 +50,15 @@ export function LogementForm({
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+
+    if (type === 'number') {
+      const numValue = value === '' ? null : parseFloat(value);
+      setFormData((prev) => ({ ...prev, [name]: numValue }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -169,6 +180,47 @@ export function LogementForm({
             disabled={isSubmitting}
           />
           {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+        </div>
+      </div>
+
+      {/* Prix par défaut */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="prix_prestataire_ht" className="block text-sm font-medium text-gray-700 mb-1">
+            Prix prestataire HT (€)
+          </label>
+          <input
+            type="number"
+            id="prix_prestataire_ht"
+            name="prix_prestataire_ht"
+            value={formData.prix_prestataire_ht ?? ''}
+            onChange={handleChange}
+            min={0}
+            step="0.01"
+            className="input-field"
+            placeholder="0.00"
+            disabled={isSubmitting}
+          />
+          <p className="text-xs text-gray-500 mt-1">Prix par défaut pour les interventions</p>
+        </div>
+
+        <div>
+          <label htmlFor="prix_client_ttc" className="block text-sm font-medium text-gray-700 mb-1">
+            Prix client TTC (€)
+          </label>
+          <input
+            type="number"
+            id="prix_client_ttc"
+            name="prix_client_ttc"
+            value={formData.prix_client_ttc ?? ''}
+            onChange={handleChange}
+            min={0}
+            step="0.01"
+            className="input-field"
+            placeholder="0.00"
+            disabled={isSubmitting}
+          />
+          <p className="text-xs text-gray-500 mt-1">Prix par défaut pour les interventions</p>
         </div>
       </div>
 
