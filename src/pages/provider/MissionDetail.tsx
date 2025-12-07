@@ -313,24 +313,25 @@ export function ProviderMissionDetail() {
         )}
       </div>
 
-      {/* Modal de rapport obligatoire */}
+      {/* Modal de rapport */}
       <Modal
         isOpen={showReportModal}
-        onClose={() => {}} // Empêcher la fermeture sans soumission
+        onClose={() => setShowReportModal(false)}
         title="Rapport de fin de mission"
         size="lg"
       >
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-sm text-yellow-800">
             <AlertCircle className="w-4 h-4 inline mr-2" />
-            Le rapport est obligatoire pour terminer la mission. Ajoutez au moins une photo.
+            Ajoutez au moins une photo pour pouvoir terminer la mission.
           </p>
         </div>
         <ReportForm
           interventionId={id || ''}
           onSubmit={handleSubmitReport}
-          onCancel={() => {}} // Pas de bouton annuler visible
+          onCancel={() => setShowReportModal(false)}
           isSubmitting={isSubmittingReport}
+          showCancelButton={true}
         />
       </Modal>
     </div>

@@ -7,8 +7,9 @@ import type { RapportInsert } from '../../types';
 interface ReportFormProps {
   interventionId: string;
   onSubmit: (data: RapportInsert) => Promise<void>;
-  onCancel: () => void;
+  onCancel?: () => void;
   isSubmitting?: boolean;
+  showCancelButton?: boolean;
 }
 
 export function ReportForm({
@@ -16,6 +17,7 @@ export function ReportForm({
   onSubmit,
   onCancel,
   isSubmitting = false,
+  showCancelButton = true,
 }: ReportFormProps) {
   const [photos, setPhotos] = useState<File[]>([]);
   const [photosPreviews, setPhotosPreviews] = useState<string[]>([]);
@@ -86,14 +88,20 @@ export function ReportForm({
   };
 
   const loading = isSubmitting || isUploading;
+  const hasPhotos = photos.length > 0;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Photos de l'intervention */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Photos du ménage terminé
+          Photos du ménage terminé *
         </label>
+        {!hasPhotos && (
+          <p className="text-sm text-amber-600 mb-2">
+            Ajoutez au moins une photo pour pouvoir envoyer le rapport.
+          </p>
+        )}
         <div className="grid grid-cols-3 gap-2 mb-2">
           {photosPreviews.map((preview, index) => (
             <div key={index} className="relative aspect-square">
@@ -202,18 +210,20 @@ export function ReportForm({
 
       {/* Boutons */}
       <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="btn-secondary"
-          disabled={loading}
-        >
-          Annuler
-        </button>
+        {showCancelButton && onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn-secondary"
+            disabled={loading}
+          >
+            Annuler
+          </button>
+        )}
         <button
           type="submit"
           className="btn-primary flex items-center gap-2"
-          disabled={loading}
+          disabled={loading || !hasPhotos}
         >
           {loading && <Loader size="sm" className="border-white border-t-transparent" />}
           Envoyer le rapport
