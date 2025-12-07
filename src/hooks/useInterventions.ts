@@ -56,7 +56,15 @@ export function useInterventions(options: UseInterventionsOptions = {}) {
 
       if (fetchError) throw fetchError;
 
-      setInterventions(data as InterventionWithRelations[]);
+      // Supabase retourne rapport comme un tableau, on prend le premier élément pour chaque intervention
+      const interventionsData = (data as (InterventionWithRelations & { rapport: unknown })[]).map(item => {
+        if (Array.isArray(item.rapport)) {
+          item.rapport = item.rapport[0] || null;
+        }
+        return item;
+      });
+
+      setInterventions(interventionsData as InterventionWithRelations[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
       console.error('Erreur fetchInterventions:', err);
@@ -178,7 +186,13 @@ export function useIntervention(id: string) {
 
       if (fetchError) throw fetchError;
 
-      setIntervention(data as InterventionWithRelations);
+      // Supabase retourne rapport comme un tableau, on prend le premier élément
+      const interventionData = data as InterventionWithRelations & { rapport: unknown };
+      if (Array.isArray(interventionData.rapport)) {
+        interventionData.rapport = interventionData.rapport[0] || null;
+      }
+
+      setIntervention(interventionData as InterventionWithRelations);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
       console.error('Erreur fetchIntervention:', err);

@@ -86,14 +86,26 @@ export function ProviderDashboard() {
     setProcessingId(id);
     try {
       // Récupérer l'intervention pour obtenir refused_by actuel
-      const { data: intervention } = await supabase
+      const { data: intervention, error: fetchError } = await supabase
         .from('interventions')
         .select('refused_by')
         .eq('id', id)
         .single();
 
-      const currentRefusedBy = (intervention as unknown as { refused_by?: string[] })?.refused_by || [];
+      if (fetchError) {
+        console.error('Erreur fetch intervention:', fetchError);
+        alert('Erreur lors de la récupération de l\'intervention');
+        return;
+      }
 
+      // Gérer le cas où refused_by est null, undefined, ou un tableau
+      let currentRefusedBy: string[] = [];
+      const interventionData = intervention as unknown as { refused_by?: string[] } | null;
+      if (interventionData && interventionData.refused_by && Array.isArray(interventionData.refused_by)) {
+        currentRefusedBy = interventionData.refused_by;
+      }
+
+      // Mettre à jour l'intervention - retirer le prestataire et remettre en attente d'attribution
       const { error } = await supabase
         .from('interventions')
         .update({
@@ -104,10 +116,14 @@ export function ProviderDashboard() {
         .eq('id', id);
 
       if (error) {
-        alert(error.message);
+        console.error('Erreur update intervention:', error);
+        alert('Erreur: ' + error.message);
       } else {
         refetch();
       }
+    } catch (err) {
+      console.error('Erreur handleRefuse:', err);
+      alert('Une erreur est survenue');
     } finally {
       setProcessingId(null);
     }
