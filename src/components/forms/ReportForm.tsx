@@ -26,6 +26,7 @@ export function ReportForm({
   const [degatsPhotos, setDegatsPhotos] = useState<File[]>([]);
   const [degatsPhotosPreviews, setDegatsPhotosPreviews] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handlePhotosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -67,14 +68,26 @@ export function ReportForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
+    setUploadError(null);
+
+    console.log('[ReportForm] Soumission du rapport...');
+    console.log('[ReportForm] Photos à uploader:', photos.length);
 
     try {
-      // Upload des photos
-      const photosUrls = await uploadImages(photos, 'interventions');
-      const degatsPhotosUrls = degatsSignales
-        ? await uploadImages(degatsPhotos, 'degats')
-        : [];
+      // Upload des photos d'intervention
+      console.log('[ReportForm] Upload des photos d\'intervention...');
+      const photosUrls = await uploadImages(photos, `interventions/${interventionId}`);
+      console.log('[ReportForm] Photos uploadées:', photosUrls);
 
+      // Upload des photos de dégâts si nécessaire
+      let degatsPhotosUrls: string[] = [];
+      if (degatsSignales && degatsPhotos.length > 0) {
+        console.log('[ReportForm] Upload des photos de dégâts...');
+        degatsPhotosUrls = await uploadImages(degatsPhotos, `degats/${interventionId}`);
+        console.log('[ReportForm] Photos de dégâts uploadées:', degatsPhotosUrls);
+      }
+
+      console.log('[ReportForm] Envoi du rapport à la base de données...');
       await onSubmit({
         intervention_id: interventionId,
         photos_intervention: photosUrls,
@@ -82,6 +95,11 @@ export function ReportForm({
         degats_description: degatsSignales ? degatsDescription : null,
         degats_photos: degatsPhotosUrls,
       });
+      console.log('[ReportForm] Rapport envoyé avec succès!');
+    } catch (error) {
+      console.error('[ReportForm] Erreur:', error);
+      const message = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'upload';
+      setUploadError(message);
     } finally {
       setIsUploading(false);
     }
@@ -92,6 +110,14 @@ export function ReportForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Affichage des erreurs d'upload */}
+      {uploadError && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700 font-medium">Erreur lors de l'upload des photos:</p>
+          <p className="text-sm text-red-600 mt-1">{uploadError}</p>
+        </div>
+      )}
+
       {/* Photos de l'intervention */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">

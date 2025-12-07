@@ -1,39 +1,44 @@
 import { supabase } from '../config/supabase';
 
-const BUCKET_NAME = 'photos';
+const BUCKET_NAME = 'intervention-reports';
 
 /**
  * Upload une image vers Supabase Storage
  * @param file - Le fichier à uploader
  * @param folder - Le dossier de destination (ex: 'interventions', 'degats')
- * @returns L'URL publique de l'image ou null en cas d'erreur
+ * @returns L'URL publique de l'image
+ * @throws Error si l'upload échoue
  */
-export async function uploadImage(file: File, folder: string): Promise<string | null> {
-  try {
-    // Générer un nom de fichier unique
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+export async function uploadImage(file: File, folder: string): Promise<string> {
+  // Générer un nom de fichier unique
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-    // Upload le fichier
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(fileName, file);
+  console.log(`[Upload] Début upload: ${file.name} -> ${fileName}`);
 
-    if (uploadError) {
-      console.error('Erreur upload:', uploadError);
-      return null;
-    }
+  // Upload le fichier
+  const { data, error: uploadError } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
 
-    // Récupérer l'URL publique
-    const { data } = supabase.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
-  } catch (error) {
-    console.error('Erreur uploadImage:', error);
-    return null;
+  if (uploadError) {
+    console.error('[Upload] Erreur upload:', uploadError);
+    throw new Error(`Erreur lors de l'upload de ${file.name}: ${uploadError.message}`);
   }
+
+  console.log('[Upload] Upload réussi:', data);
+
+  // Récupérer l'URL publique
+  const { data: urlData } = supabase.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(fileName);
+
+  console.log('[Upload] URL publique:', urlData.publicUrl);
+
+  return urlData.publicUrl;
 }
 
 /**
@@ -41,16 +46,24 @@ export async function uploadImage(file: File, folder: string): Promise<string | 
  * @param files - Les fichiers à uploader
  * @param folder - Le dossier de destination
  * @returns Un tableau des URLs publiques
+ * @throws Error si un upload échoue
  */
 export async function uploadImages(files: File[], folder: string): Promise<string[]> {
+  console.log(`[Upload] Début upload de ${files.length} fichier(s) vers ${folder}`);
+
+  if (files.length === 0) {
+    console.log('[Upload] Aucun fichier à uploader');
+    return [];
+  }
+
   const urls: string[] = [];
 
   for (const file of files) {
     const url = await uploadImage(file, folder);
-    if (url) {
-      urls.push(url);
-    }
+    urls.push(url);
   }
+
+  console.log(`[Upload] Upload terminé. ${urls.length} URL(s) générée(s):`, urls);
 
   return urls;
 }
