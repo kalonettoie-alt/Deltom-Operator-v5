@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Calendar, Users, Baby, Clock, Key, FileText, Play, CheckCircle, AlertCircle } from 'lucide-react';
-import { useIntervention, useInterventions } from '../../hooks/useInterventions';
+import { useIntervention } from '../../hooks/useInterventions';
 import { useRapports } from '../../hooks/useRapports';
 import { Loader } from '../../components/ui/Loader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
@@ -13,8 +13,14 @@ import type { RapportInsert } from '../../types';
 export function ProviderMissionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { intervention, isLoading, error, refetch } = useIntervention(id || '');
-  const { startIntervention } = useInterventions();
+  const {
+    intervention,
+    isLoading,
+    error,
+    refetch,
+    startIntervention,
+    completeIntervention,
+  } = useIntervention(id || '');
   const { createRapport } = useRapports();
 
   const [isStarting, setIsStarting] = useState(false);
@@ -43,11 +49,12 @@ export function ProviderMissionDetail() {
     });
   };
 
+  // Commencer la mission via RPC
   const handleStart = async () => {
     if (!id || !isToday) return;
     setIsStarting(true);
     try {
-      const { error } = await startIntervention(id);
+      const { error } = await startIntervention();
       if (error) {
         alert(error);
       } else {
@@ -58,37 +65,35 @@ export function ProviderMissionDetail() {
     }
   };
 
-  // Quand on clique sur "Terminer", on ouvre immédiatement le formulaire de rapport
+  // Quand on clique sur "Terminer", on ouvre le formulaire de rapport
   const handleComplete = () => {
     setShowReportModal(true);
   };
 
-  // Soumettre le rapport (ce qui termine aussi l'intervention)
+  // Soumettre le rapport (ce qui termine aussi l'intervention via RPC)
   const handleSubmitReport = async (data: RapportInsert) => {
     if (!id) return;
     setIsSubmittingReport(true);
     try {
       // 1. Créer le rapport
+      console.log('[MissionDetail] Création du rapport...');
       const { error: rapportError } = await createRapport(data);
       if (rapportError) {
+        console.error('[MissionDetail] Erreur création rapport:', rapportError);
         alert(rapportError);
         return;
       }
+      console.log('[MissionDetail] Rapport créé avec succès');
 
-      // 2. Marquer l'intervention comme terminée
-      const { supabase } = await import('../../config/supabase');
-      const { error: updateError } = await supabase
-        .from('interventions')
-        .update({
-          status: 'terminee',
-          completed_at: new Date().toISOString(),
-        } as never)
-        .eq('id', id);
-
-      if (updateError) {
-        alert(updateError.message);
+      // 2. Terminer l'intervention via RPC
+      console.log('[MissionDetail] Appel terminer_intervention via RPC...');
+      const { error: completeError } = await completeIntervention();
+      if (completeError) {
+        console.error('[MissionDetail] Erreur terminer intervention:', completeError);
+        alert(completeError);
         return;
       }
+      console.log('[MissionDetail] Intervention terminée avec succès');
 
       setShowReportModal(false);
       refetch();
@@ -117,7 +122,7 @@ export function ProviderMissionDetail() {
   }
 
   return (
-    <div>
+    <div className="pb-20 md:pb-0">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button
@@ -127,20 +132,20 @@ export function ProviderMissionDetail() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
               {intervention.logement?.name}
             </h1>
             <StatusBadge status={intervention.status} />
           </div>
-          <p className="text-gray-600 mt-1">{formatDate(intervention.date)}</p>
+          <p className="text-gray-600 mt-1 text-sm md:text-base">{formatDate(intervention.date)}</p>
         </div>
       </div>
 
       {/* Actions */}
       {(intervention.status === 'acceptee' || intervention.status === 'en_cours') && (
         <div className="card mb-6 bg-primary-50 border-primary-200">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="font-semibold text-primary-900">
                 {intervention.status === 'acceptee'
@@ -160,7 +165,7 @@ export function ProviderMissionDetail() {
                 <button
                   onClick={handleStart}
                   disabled={isStarting || !isToday}
-                  className={`btn-primary flex items-center gap-2 ${!isToday ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full sm:w-auto btn-primary flex items-center justify-center gap-2 ${!isToday ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {isStarting ? (
                     <Loader size="sm" className="border-white border-t-transparent" />
@@ -170,7 +175,7 @@ export function ProviderMissionDetail() {
                   Commencer
                 </button>
                 {!isToday && (
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                  <div className="hidden sm:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     <AlertCircle className="w-3 h-3 inline mr-1" />
                     Disponible le jour de l'intervention
                   </div>
@@ -179,7 +184,7 @@ export function ProviderMissionDetail() {
             ) : (
               <button
                 onClick={handleComplete}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 flex items-center gap-2"
+                className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
               >
                 <CheckCircle className="w-4 h-4" />
                 Terminer
@@ -189,7 +194,7 @@ export function ProviderMissionDetail() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Infos logement */}
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -206,7 +211,7 @@ export function ProviderMissionDetail() {
               </p>
               {intervention.logement.access_code && (
                 <div className="flex items-center gap-2 mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <Key className="w-5 h-5 text-yellow-600" />
+                  <Key className="w-5 h-5 text-yellow-600 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-yellow-800">Code d'accès</p>
                     <p className="text-yellow-700">{intervention.logement.access_code}</p>
@@ -249,7 +254,7 @@ export function ProviderMissionDetail() {
 
         {/* Instructions */}
         {(intervention.logement?.instructions || intervention.special_instructions) && (
-          <div className="card lg:col-span-2">
+          <div className="card md:col-span-2">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <FileText className="w-5 h-5 text-gray-400" />
               Instructions
@@ -306,6 +311,52 @@ export function ProviderMissionDetail() {
                       return `${mins}min`;
                     })()}
                   </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Rapport affiché si intervention terminée */}
+        {intervention.status === 'terminee' && intervention.rapport && (
+          <div className="card md:col-span-2">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-gray-400" />
+              Rapport
+            </h2>
+            <div className="space-y-4">
+              {intervention.rapport.photos_intervention && intervention.rapport.photos_intervention.length > 0 && (
+                <div>
+                  <p className="font-medium text-gray-700 mb-2">Photos de l'intervention:</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {intervention.rapport.photos_intervention.map((url, index) => (
+                      <img
+                        key={index}
+                        src={url}
+                        alt={`Photo ${index + 1}`}
+                        className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {intervention.rapport.degats_signales && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="font-medium text-red-700 mb-2">⚠️ Dégâts signalés:</p>
+                  <p className="text-red-600">{intervention.rapport.degats_description}</p>
+                  {intervention.rapport.degats_photos && intervention.rapport.degats_photos.length > 0 && (
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      {intervention.rapport.degats_photos.map((url, index) => (
+                        <img
+                          key={index}
+                          src={url}
+                          alt={`Dégât ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg border-2 border-red-300"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

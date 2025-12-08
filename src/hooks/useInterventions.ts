@@ -77,6 +77,10 @@ export function useInterventions(options: UseInterventionsOptions = {}) {
     fetchInterventions();
   }, [fetchInterventions]);
 
+  // ============================================================
+  // MÉTHODES ADMIN - UPDATE direct (autorisé par RLS admin)
+  // ============================================================
+
   const createIntervention = async (data: InterventionInsert) => {
     try {
       const { data: newIntervention, error: createError } = await supabase
@@ -131,19 +135,122 @@ export function useInterventions(options: UseInterventionsOptions = {}) {
     }
   };
 
-  // Méthodes spécifiques pour les prestataires
+  // ============================================================
+  // MÉTHODES PRESTATAIRE - Utilisant RPC (SECURITY DEFINER)
+  // Ces fonctions contournent le RLS pour les actions prestataire
+  // ============================================================
+
+  const acceptIntervention = async (id: string) => {
+    try {
+      console.log('[RPC] Appel accepter_intervention:', id);
+      const { data, error: rpcError } = await supabase.rpc('accepter_intervention' as never, {
+        p_intervention_id: id,
+      } as never);
+
+      if (rpcError) {
+        console.error('[RPC] Erreur accepter_intervention:', rpcError);
+        throw rpcError;
+      }
+
+      console.log('[RPC] Résultat accepter_intervention:', data);
+
+      // Vérifier si la fonction a retourné une erreur
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result && 'success' in result && !result.success) {
+        throw new Error(result.error || 'Erreur lors de l\'acceptation');
+      }
+
+      await fetchInterventions();
+      return { data, error: null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors de l\'acceptation';
+      console.error('Erreur acceptIntervention:', err);
+      return { data: null, error: message };
+    }
+  };
+
+  const refuseIntervention = async (id: string) => {
+    try {
+      console.log('[RPC] Appel refuser_intervention:', id);
+      const { data, error: rpcError } = await supabase.rpc('refuser_intervention' as never, {
+        p_intervention_id: id,
+      } as never);
+
+      if (rpcError) {
+        console.error('[RPC] Erreur refuser_intervention:', rpcError);
+        throw rpcError;
+      }
+
+      console.log('[RPC] Résultat refuser_intervention:', data);
+
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result && 'success' in result && !result.success) {
+        throw new Error(result.error || 'Erreur lors du refus');
+      }
+
+      await fetchInterventions();
+      return { data, error: null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors du refus';
+      console.error('Erreur refuseIntervention:', err);
+      return { data: null, error: message };
+    }
+  };
+
   const startIntervention = async (id: string) => {
-    return updateIntervention(id, {
-      status: 'en_cours',
-      started_at: new Date().toISOString(),
-    });
+    try {
+      console.log('[RPC] Appel commencer_intervention:', id);
+      const { data, error: rpcError } = await supabase.rpc('commencer_intervention' as never, {
+        p_intervention_id: id,
+      } as never);
+
+      if (rpcError) {
+        console.error('[RPC] Erreur commencer_intervention:', rpcError);
+        throw rpcError;
+      }
+
+      console.log('[RPC] Résultat commencer_intervention:', data);
+
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result && 'success' in result && !result.success) {
+        throw new Error(result.error || 'Erreur lors du démarrage');
+      }
+
+      await fetchInterventions();
+      return { data, error: null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors du démarrage';
+      console.error('Erreur startIntervention:', err);
+      return { data: null, error: message };
+    }
   };
 
   const completeIntervention = async (id: string) => {
-    return updateIntervention(id, {
-      status: 'terminee',
-      completed_at: new Date().toISOString(),
-    });
+    try {
+      console.log('[RPC] Appel terminer_intervention:', id);
+      const { data, error: rpcError } = await supabase.rpc('terminer_intervention' as never, {
+        p_intervention_id: id,
+      } as never);
+
+      if (rpcError) {
+        console.error('[RPC] Erreur terminer_intervention:', rpcError);
+        throw rpcError;
+      }
+
+      console.log('[RPC] Résultat terminer_intervention:', data);
+
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result && 'success' in result && !result.success) {
+        throw new Error(result.error || 'Erreur lors de la finalisation');
+      }
+
+      await fetchInterventions();
+      return { data, error: null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors de la finalisation';
+      console.error('Erreur completeIntervention:', err);
+      return { data: null, error: message };
+    }
   };
 
   return {
@@ -151,9 +258,13 @@ export function useInterventions(options: UseInterventionsOptions = {}) {
     isLoading,
     error,
     refetch: fetchInterventions,
+    // Méthodes admin
     createIntervention,
     updateIntervention,
     deleteIntervention,
+    // Méthodes prestataire (RPC)
+    acceptIntervention,
+    refuseIntervention,
     startIntervention,
     completeIntervention,
   };
@@ -205,10 +316,103 @@ export function useIntervention(id: string) {
     fetchIntervention();
   }, [fetchIntervention]);
 
+  // ============================================================
+  // MÉTHODES PRESTATAIRE - Utilisant RPC (SECURITY DEFINER)
+  // ============================================================
+
+  const acceptIntervention = async () => {
+    try {
+      console.log('[RPC] Appel accepter_intervention:', id);
+      const { data, error: rpcError } = await supabase.rpc('accepter_intervention' as never, {
+        p_intervention_id: id,
+      } as never);
+
+      if (rpcError) throw rpcError;
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result && 'success' in result && !result.success) {
+        throw new Error(result.error || 'Erreur lors de l\'acceptation');
+      }
+
+      await fetchIntervention();
+      return { data, error: null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors de l\'acceptation';
+      return { data: null, error: message };
+    }
+  };
+
+  const refuseIntervention = async () => {
+    try {
+      console.log('[RPC] Appel refuser_intervention:', id);
+      const { data, error: rpcError } = await supabase.rpc('refuser_intervention' as never, {
+        p_intervention_id: id,
+      } as never);
+
+      if (rpcError) throw rpcError;
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result && 'success' in result && !result.success) {
+        throw new Error(result.error || 'Erreur lors du refus');
+      }
+
+      await fetchIntervention();
+      return { data, error: null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors du refus';
+      return { data: null, error: message };
+    }
+  };
+
+  const startIntervention = async () => {
+    try {
+      console.log('[RPC] Appel commencer_intervention:', id);
+      const { data, error: rpcError } = await supabase.rpc('commencer_intervention' as never, {
+        p_intervention_id: id,
+      } as never);
+
+      if (rpcError) throw rpcError;
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result && 'success' in result && !result.success) {
+        throw new Error(result.error || 'Erreur lors du démarrage');
+      }
+
+      await fetchIntervention();
+      return { data, error: null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors du démarrage';
+      return { data: null, error: message };
+    }
+  };
+
+  const completeIntervention = async () => {
+    try {
+      console.log('[RPC] Appel terminer_intervention:', id);
+      const { data, error: rpcError } = await supabase.rpc('terminer_intervention' as never, {
+        p_intervention_id: id,
+      } as never);
+
+      if (rpcError) throw rpcError;
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result && 'success' in result && !result.success) {
+        throw new Error(result.error || 'Erreur lors de la finalisation');
+      }
+
+      await fetchIntervention();
+      return { data, error: null };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors de la finalisation';
+      return { data: null, error: message };
+    }
+  };
+
   return {
     intervention,
     isLoading,
     error,
     refetch: fetchIntervention,
+    // Méthodes prestataire (RPC)
+    acceptIntervention,
+    refuseIntervention,
+    startIntervention,
+    completeIntervention,
   };
 }

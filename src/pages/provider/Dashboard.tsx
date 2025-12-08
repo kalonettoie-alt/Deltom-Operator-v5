@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useInterventions } from '../../hooks/useInterventions';
-import { supabase } from '../../config/supabase';
 import { Calendar, ClipboardList, CheckCircle, Play, Euro, Clock, Check, X } from 'lucide-react';
 import { Loader } from '../../components/ui/Loader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
@@ -11,7 +10,12 @@ import { EmptyState } from '../../components/ui/EmptyState';
 export function ProviderDashboard() {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { interventions, isLoading, refetch } = useInterventions({
+  const {
+    interventions,
+    isLoading,
+    acceptIntervention,
+    refuseIntervention,
+  } = useInterventions({
     prestataireId: profile?.id,
     withRelations: true,
   });
@@ -60,70 +64,27 @@ export function ProviderDashboard() {
   // Missions en attente de réponse (statut assignee)
   const pendingMissions = interventions.filter((i) => i.status === 'assignee');
 
-  // Accepter une mission
+  // Accepter une mission via RPC
   const handleAccept = async (id: string) => {
     setProcessingId(id);
     try {
-      const { error } = await supabase
-        .from('interventions')
-        .update({ status: 'acceptee' } as never)
-        .eq('id', id);
-
+      const { error } = await acceptIntervention(id);
       if (error) {
-        alert(error.message);
-      } else {
-        refetch();
+        alert(error);
       }
     } finally {
       setProcessingId(null);
     }
   };
 
-  // Refuser une mission
+  // Refuser une mission via RPC
   const handleRefuse = async (id: string) => {
-    if (!profile?.id) return;
-
     setProcessingId(id);
     try {
-      // Récupérer l'intervention pour obtenir refused_by actuel
-      const { data: intervention, error: fetchError } = await supabase
-        .from('interventions')
-        .select('refused_by')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) {
-        console.error('Erreur fetch intervention:', fetchError);
-        alert('Erreur lors de la récupération de l\'intervention');
-        return;
-      }
-
-      // Gérer le cas où refused_by est null, undefined, ou un tableau
-      let currentRefusedBy: string[] = [];
-      const interventionData = intervention as unknown as { refused_by?: string[] } | null;
-      if (interventionData && interventionData.refused_by && Array.isArray(interventionData.refused_by)) {
-        currentRefusedBy = interventionData.refused_by;
-      }
-
-      // Mettre à jour l'intervention - retirer le prestataire et remettre en attente d'attribution
-      const { error } = await supabase
-        .from('interventions')
-        .update({
-          status: 'a_attribuer',
-          prestataire_id: null,
-          refused_by: [...currentRefusedBy, profile.id],
-        } as never)
-        .eq('id', id);
-
+      const { error } = await refuseIntervention(id);
       if (error) {
-        console.error('Erreur update intervention:', error);
-        alert('Erreur: ' + error.message);
-      } else {
-        refetch();
+        alert(error);
       }
-    } catch (err) {
-      console.error('Erreur handleRefuse:', err);
-      alert('Une erreur est survenue');
     } finally {
       setProcessingId(null);
     }
@@ -138,7 +99,7 @@ export function ProviderDashboard() {
   }
 
   return (
-    <div>
+    <div className="pb-20 md:pb-0">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
           Bonjour, {profile?.full_name}
@@ -146,52 +107,52 @@ export function ProviderDashboard() {
         <p className="text-gray-600 mt-1">Vos missions du jour</p>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {/* Stats cards - responsive grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Calendar className="w-6 h-6 text-blue-600" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-blue-100 rounded-xl">
+              <Calendar className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Missions aujourd'hui</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.today}</p>
+              <p className="text-xs md:text-sm text-gray-500">Aujourd'hui</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.today}</p>
             </div>
           </div>
         </div>
 
         <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-100 rounded-xl">
-              <ClipboardList className="w-6 h-6 text-yellow-600" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-yellow-100 rounded-xl">
+              <ClipboardList className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Cette semaine</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.week}</p>
+              <p className="text-xs md:text-sm text-gray-500">Semaine</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.week}</p>
             </div>
           </div>
         </div>
 
         <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-green-100 rounded-xl">
+              <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Terminées ce mois</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.completedMonth}</p>
+              <p className="text-xs md:text-sm text-gray-500">Terminées</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.completedMonth}</p>
             </div>
           </div>
         </div>
 
         <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <Euro className="w-6 h-6 text-purple-600" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-purple-100 rounded-xl">
+              <Euro className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Revenus générés</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.revenus.toFixed(2)}€</p>
+              <p className="text-xs md:text-sm text-gray-500">Revenus</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.revenus.toFixed(0)}€</p>
             </div>
           </div>
         </div>
@@ -202,7 +163,7 @@ export function ProviderDashboard() {
         <div className="card mb-6 bg-orange-50 border-orange-200">
           <h2 className="text-lg font-semibold text-orange-800 mb-4 flex items-center gap-2">
             <Clock className="w-5 h-5" />
-            Missions en attente de réponse ({pendingMissions.length})
+            Missions en attente ({pendingMissions.length})
           </h2>
           <div className="space-y-3">
             {pendingMissions.map((mission) => (
@@ -210,57 +171,56 @@ export function ProviderDashboard() {
                 key={mission.id}
                 className="p-4 bg-white rounded-lg border border-orange-200"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div
-                    className="cursor-pointer"
-                    onClick={() => navigate(`/prestataire/missions/${mission.id}`)}
+                <div
+                  className="cursor-pointer mb-4"
+                  onClick={() => navigate(`/prestataire/missions/${mission.id}`)}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-medium text-gray-900">
+                      {mission.logement?.name}
+                    </h3>
+                    <StatusBadge status={mission.status} />
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    {new Date(mission.date).toLocaleDateString('fr-FR', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {mission.logement?.address}, {mission.logement?.city}
+                  </p>
+                  <p className="text-sm font-medium text-purple-600 mt-1">
+                    {mission.prix_prestataire_ht}€ HT
+                  </p>
+                </div>
+                {/* Boutons empilés sur mobile, côte à côte sur desktop */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={() => handleRefuse(mission.id)}
+                    disabled={processingId === mission.id}
+                    className="w-full sm:w-auto px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 flex items-center justify-center gap-2"
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium text-gray-900">
-                        {mission.logement?.name}
-                      </h3>
-                      <StatusBadge status={mission.status} />
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      {new Date(mission.date).toLocaleDateString('fr-FR', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                      })}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {mission.logement?.address}, {mission.logement?.city}
-                    </p>
-                    <p className="text-sm font-medium text-purple-600 mt-1">
-                      {mission.prix_prestataire_ht}€ HT
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleRefuse(mission.id)}
-                      disabled={processingId === mission.id}
-                      className="btn-secondary flex items-center gap-2 text-red-600 border-red-300 hover:bg-red-50"
-                    >
-                      {processingId === mission.id ? (
-                        <Loader size="sm" />
-                      ) : (
-                        <X className="w-4 h-4" />
-                      )}
-                      Refuser
-                    </button>
-                    <button
-                      onClick={() => handleAccept(mission.id)}
-                      disabled={processingId === mission.id}
-                      className="btn-primary flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                    >
-                      {processingId === mission.id ? (
-                        <Loader size="sm" className="border-white border-t-transparent" />
-                      ) : (
-                        <Check className="w-4 h-4" />
-                      )}
-                      Accepter
-                    </button>
-                  </div>
+                    {processingId === mission.id ? (
+                      <Loader size="sm" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
+                    Refuser
+                  </button>
+                  <button
+                    onClick={() => handleAccept(mission.id)}
+                    disabled={processingId === mission.id}
+                    className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                  >
+                    {processingId === mission.id ? (
+                      <Loader size="sm" className="border-white border-t-transparent" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    Accepter
+                  </button>
                 </div>
               </div>
             ))}
