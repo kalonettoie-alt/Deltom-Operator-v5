@@ -8,8 +8,49 @@ import { Modal } from '../../components/ui/Modal';
 import { Loader } from '../../components/ui/Loader';
 import { InterventionForm } from '../../components/forms/InterventionForm';
 import { InterventionCard } from '../../components/cards/InterventionCard';
-import { LayoutDashboard, Users, Building2, ClipboardList, Plus, Calendar } from 'lucide-react';
+import {
+  Users,
+  Building2,
+  ClipboardList,
+  Plus,
+  Calendar,
+  UserCog,
+  Euro,
+  TrendingUp,
+} from 'lucide-react';
 import type { InterventionInsert, InterventionWithRelations } from '../../types';
+
+// Types pour les StatCards
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ElementType;
+  bgColor: string;
+  iconBgColor: string;
+  iconColor: string;
+  trend?: string;
+}
+
+// Composant StatCard coloré
+const StatCard = ({ title, value, icon: Icon, bgColor, iconBgColor, iconColor, trend }: StatCardProps) => (
+  <div className={`${bgColor} rounded-2xl p-4 md:p-5`}>
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm text-gray-600 mb-1">{title}</p>
+        <p className="text-2xl md:text-3xl font-bold text-gray-900">{value}</p>
+        {trend && (
+          <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" />
+            {trend}
+          </p>
+        )}
+      </div>
+      <div className={`${iconBgColor} p-3 rounded-xl`}>
+        <Icon className={`w-6 h-6 ${iconColor}`} />
+      </div>
+    </div>
+  </div>
+);
 
 export function AdminDashboard() {
   const { profile } = useAuth();
@@ -23,6 +64,8 @@ export function AdminDashboard() {
     interventionsToAssign: 0,
     activeClients: 0,
     totalLogements: 0,
+    totalPrestataires: 0,
+    revenusMonth: 0,
   });
   const [upcomingInterventions, setUpcomingInterventions] = useState<InterventionWithRelations[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
@@ -37,6 +80,9 @@ export function AdminDashboard() {
       setIsLoadingStats(true);
       try {
         const today = new Date().toISOString().split('T')[0];
+        const currentMonth = new Date();
+        const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
+        const lastDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
 
         // Interventions du jour
         const { count: todayCount } = await supabase
@@ -61,6 +107,23 @@ export function AdminDashboard() {
           .from('logements')
           .select('*', { count: 'exact', head: true });
 
+        // Total prestataires
+        const { count: prestatairesCount } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'prestataire');
+
+        // Revenus du mois (interventions terminées)
+        const { data: revenusData } = await supabase
+          .from('interventions')
+          .select('prix_client_ttc')
+          .eq('status', 'terminee')
+          .gte('date', firstDayOfMonth)
+          .lte('date', lastDayOfMonth);
+
+        const totalRevenus = revenusData?.reduce((sum, intervention) =>
+          sum + (intervention.prix_client_ttc || 0), 0) || 0;
+
         // Interventions à venir (aujourd'hui et après, pas terminées)
         const { data: upcoming } = await supabase
           .from('interventions')
@@ -80,6 +143,8 @@ export function AdminDashboard() {
           interventionsToAssign: toAssignCount || 0,
           activeClients: clientsCount || 0,
           totalLogements: logementsCount || 0,
+          totalPrestataires: prestatairesCount || 0,
+          revenusMonth: totalRevenus,
         });
 
         setUpcomingInterventions((upcoming as InterventionWithRelations[]) || []);
@@ -124,83 +189,91 @@ export function AdminDashboard() {
     }
   };
 
+  // Formater les revenus
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Nom du mois courant
+  const currentMonthName = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">
             Bonjour, {profile?.full_name}
           </h1>
-          <p className="text-gray-600 mt-1">
-            Bienvenue sur votre tableau de bord administrateur
+          <p className="text-sm md:text-base text-gray-600 mt-1">
+            Voici le résumé de votre activité
           </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary flex items-center justify-center gap-2"
         >
           <Plus className="w-4 h-4" />
-          Nouvelle intervention
+          <span className="hidden sm:inline">Nouvelle intervention</span>
+          <span className="sm:hidden">Nouvelle</span>
         </button>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <ClipboardList className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Interventions aujourd'hui</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {isLoadingStats ? '-' : stats.interventionsToday}
-              </p>
-            </div>
+      {/* Carte Revenus du mois - Pleine largeur */}
+      <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 md:p-6 text-white mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-emerald-100 text-sm mb-1">Revenus générés</p>
+            <p className="text-3xl md:text-4xl font-bold">
+              {isLoadingStats ? '...' : formatCurrency(stats.revenusMonth)}
+            </p>
+            <p className="text-emerald-100 text-sm mt-2 capitalize">{currentMonthName}</p>
+          </div>
+          <div className="bg-white/20 p-4 rounded-2xl">
+            <Euro className="w-8 h-8 text-white" />
           </div>
         </div>
+      </div>
 
-        <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-100 rounded-xl">
-              <LayoutDashboard className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">À attribuer</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {isLoadingStats ? '-' : stats.interventionsToAssign}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <Users className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Clients actifs</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {isLoadingStats ? '-' : stats.activeClients}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <Building2 className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Logements</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {isLoadingStats ? '-' : stats.totalLogements}
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Stats cards en grille 2x2 */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-6">
+        <StatCard
+          title="Logements"
+          value={isLoadingStats ? '-' : stats.totalLogements}
+          icon={Building2}
+          bgColor="bg-blue-50"
+          iconBgColor="bg-blue-100"
+          iconColor="text-blue-600"
+        />
+        <StatCard
+          title="Interventions"
+          value={isLoadingStats ? '-' : stats.interventionsToday}
+          icon={ClipboardList}
+          bgColor="bg-sky-50"
+          iconBgColor="bg-sky-100"
+          iconColor="text-sky-600"
+          trend="Aujourd'hui"
+        />
+        <StatCard
+          title="Clients"
+          value={isLoadingStats ? '-' : stats.activeClients}
+          icon={Users}
+          bgColor="bg-green-50"
+          iconBgColor="bg-green-100"
+          iconColor="text-green-600"
+        />
+        <StatCard
+          title="Prestataires"
+          value={isLoadingStats ? '-' : stats.totalPrestataires}
+          icon={UserCog}
+          bgColor="bg-orange-50"
+          iconBgColor="bg-orange-100"
+          iconColor="text-orange-600"
+        />
       </div>
 
       {/* Section interventions récentes */}
