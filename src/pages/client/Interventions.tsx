@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ClipboardList, Search, Filter, FileText, Clock } from 'lucide-react';
+import { ClipboardList, Search, Filter, FileText, Clock, Camera, Image } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useInterventions } from '../../hooks/useInterventions';
 import { Loader } from '../../components/ui/Loader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
+import { ImageLightbox } from '../../components/ui/ImageLightbox';
 import { InterventionTypeLabels, getClientStatus, ClientStatusLabels } from '../../types';
 import type { InterventionWithRelations } from '../../types';
 
@@ -36,6 +37,17 @@ export function ClientInterventions() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClientStatus | ''>('');
   const [selectedIntervention, setSelectedIntervention] = useState<InterventionWithRelations | null>(null);
+
+  // Pour le lightbox des photos
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  const openLightbox = (images: string[], index: number) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+    setIsLightboxOpen(true);
+  };
 
   // Filtrer les interventions avec les statuts simplifiés
   const filteredInterventions = interventions.filter((i) => {
@@ -237,24 +249,49 @@ export function ClientInterventions() {
               </div>
             )}
 
+            {/* Photos état des lieux (avant intervention) */}
+            {selectedIntervention.photos_etat_lieux && selectedIntervention.photos_etat_lieux.length > 0 && (
+              <div className="pt-4 border-t border-gray-200">
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Camera className="w-5 h-5" />
+                  État des lieux (avant ménage)
+                </h4>
+                <div className="grid grid-cols-4 gap-2">
+                  {selectedIntervention.photos_etat_lieux.map((photo, index) => (
+                    <img
+                      key={index}
+                      src={photo}
+                      alt={`État des lieux ${index + 1}`}
+                      onClick={() => openLightbox(selectedIntervention.photos_etat_lieux!, index)}
+                      className="w-full aspect-square object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Rapport */}
             {selectedIntervention.rapport && (
               <div className="pt-4 border-t border-gray-200">
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <FileText className="w-5 h-5" />
-                  Rapport
+                  Rapport de fin d'intervention
                 </h4>
 
                 {selectedIntervention.rapport.photos_intervention.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-sm text-gray-500 mb-2">Photos de l'intervention</p>
+                    <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
+                      <Image className="w-4 h-4" />
+                      Photos après ménage
+                    </p>
                     <div className="grid grid-cols-4 gap-2">
                       {selectedIntervention.rapport.photos_intervention.map((photo, index) => (
                         <img
                           key={index}
                           src={photo}
                           alt={`Photo ${index + 1}`}
-                          className="w-full aspect-square object-cover rounded-lg"
+                          onClick={() => openLightbox(selectedIntervention.rapport!.photos_intervention, index)}
+                          className="w-full aspect-square object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                         />
                       ))}
                     </div>
@@ -263,7 +300,7 @@ export function ClientInterventions() {
 
                 {selectedIntervention.rapport.degats_signales && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="font-medium text-red-700 mb-2">Dégâts signalés</p>
+                    <p className="font-medium text-red-700 mb-2">⚠️ Dégâts signalés</p>
                     <p className="text-red-600">{selectedIntervention.rapport.degats_description}</p>
                     {selectedIntervention.rapport.degats_photos.length > 0 && (
                       <div className="grid grid-cols-4 gap-2 mt-2">
@@ -272,7 +309,8 @@ export function ClientInterventions() {
                             key={index}
                             src={photo}
                             alt={`Dégât ${index + 1}`}
-                            className="w-full aspect-square object-cover rounded-lg border-2 border-red-300"
+                            onClick={() => openLightbox(selectedIntervention.rapport!.degats_photos, index)}
+                            className="w-full aspect-square object-cover rounded-lg border-2 border-red-300 cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         ))}
                       </div>
@@ -284,6 +322,14 @@ export function ClientInterventions() {
           </div>
         )}
       </Modal>
+
+      {/* Lightbox pour les photos */}
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+      />
     </div>
   );
 }

@@ -285,8 +285,8 @@ export function AdminCalendar() {
           </div>
         </div>
 
-        {/* Liste des interventions du jour selectionne */}
-        <div className="card">
+        {/* Liste des interventions du jour selectionne - Desktop uniquement */}
+        <div className="hidden lg:block card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CalendarIcon className="w-5 h-5 text-gray-400" />
             {selectedDate

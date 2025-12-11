@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import { Loader } from '../ui/Loader';
 import { InterventionTypeLabels } from '../../types';
 import type {
@@ -50,6 +51,19 @@ export function InterventionForm({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedLogement, setSelectedLogement] = useState<LogementWithClient | null>(null);
+  const [logementSearch, setLogementSearch] = useState('');
+
+  // Filtrer les logements selon la recherche
+  const filteredLogements = useMemo(() => {
+    if (!logementSearch.trim()) return logements;
+    const search = logementSearch.toLowerCase().trim();
+    return logements.filter(
+      (l) =>
+        l.name.toLowerCase().includes(search) ||
+        l.city?.toLowerCase().includes(search) ||
+        l.client?.full_name?.toLowerCase().includes(search)
+    );
+  }, [logements, logementSearch]);
 
   useEffect(() => {
     if (intervention) {
@@ -154,6 +168,18 @@ export function InterventionForm({
         <label htmlFor="logement_id" className="block text-sm font-medium text-gray-700 mb-1">
           Logement *
         </label>
+        {/* Champ de recherche */}
+        <div className="relative mb-2">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Rechercher un logement, ville ou client..."
+            value={logementSearch}
+            onChange={(e) => setLogementSearch(e.target.value)}
+            className="input-field pl-10"
+            disabled={isSubmitting}
+          />
+        </div>
         <select
           id="logement_id"
           name="logement_id"
@@ -163,12 +189,15 @@ export function InterventionForm({
           disabled={isSubmitting}
         >
           <option value="">Sélectionner un logement</option>
-          {logements.map((logement) => (
+          {filteredLogements.map((logement) => (
             <option key={logement.id} value={logement.id}>
               {logement.name} - {logement.city} ({logement.client?.full_name})
             </option>
           ))}
         </select>
+        {filteredLogements.length === 0 && logementSearch && (
+          <p className="text-gray-500 text-sm mt-1">Aucun logement trouvé pour "{logementSearch}"</p>
+        )}
         {errors.logement_id && <p className="text-red-500 text-sm mt-1">{errors.logement_id}</p>}
       </div>
 
