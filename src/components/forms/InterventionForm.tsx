@@ -55,14 +55,28 @@ export function InterventionForm({
 
   // Filtrer les logements selon la recherche
   const filteredLogements = useMemo(() => {
-    if (!logementSearch.trim()) return logements;
+    // S'assurer que logements est un tableau valide
+    const safeLogements = logements || [];
+
+    if (!logementSearch.trim()) return safeLogements;
+
     const search = logementSearch.toLowerCase().trim();
-    return logements.filter(
-      (l) =>
-        l.name.toLowerCase().includes(search) ||
-        l.city?.toLowerCase().includes(search) ||
-        l.client?.full_name?.toLowerCase().includes(search)
-    );
+
+    return safeLogements.filter((l) => {
+      const name = (l.name || '').toLowerCase();
+      const city = (l.city || '').toLowerCase();
+      const address = (l.address || '').toLowerCase();
+      const postalCode = (l.postal_code || '').toLowerCase();
+      const clientName = (l.client?.full_name || '').toLowerCase();
+
+      return (
+        name.includes(search) ||
+        city.includes(search) ||
+        address.includes(search) ||
+        postalCode.includes(search) ||
+        clientName.includes(search)
+      );
+    });
   }, [logements, logementSearch]);
 
   useEffect(() => {
@@ -173,12 +187,17 @@ export function InterventionForm({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Rechercher un logement, ville ou client..."
+            placeholder="Rechercher par nom, adresse, ville, code postal..."
             value={logementSearch}
             onChange={(e) => setLogementSearch(e.target.value)}
             className="input-field pl-10"
             disabled={isSubmitting}
           />
+          {logementSearch && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+              {filteredLogements.length} résultat(s)
+            </span>
+          )}
         </div>
         <select
           id="logement_id"
