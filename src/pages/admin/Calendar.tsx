@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Zap } from 'lucide-react';
 import { useInterventions } from '../../hooks/useInterventions';
 import { useLogements } from '../../hooks/useLogements';
 import { useClients, usePrestataires } from '../../hooks/useProfiles';
@@ -9,9 +9,10 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import type { InterventionWithRelations } from '../../types';
 
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const DAYS_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const MONTHS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
 ];
 
 export function AdminCalendar() {
@@ -23,6 +24,7 @@ export function AdminCalendar() {
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Filtres
   const [logementFilter, setLogementFilter] = useState('');
@@ -99,6 +101,12 @@ export function AdminCalendar() {
 
   const hasActiveFilters = logementFilter || clientFilter || prestataireFilter;
 
+  const formatSelectedDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
+    return `${DAYS_FULL[dayIndex]} ${date.getDate()} ${MONTHS[date.getMonth()]}`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -110,12 +118,21 @@ export function AdminCalendar() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Calendrier</h1>
-        <p className="text-gray-600 mt-1">Vue mensuelle des interventions</p>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Calendrier</h1>
+        <p className="text-gray-600 mt-1 text-sm md:text-base">Vue mensuelle des interventions</p>
       </div>
 
+      {/* Bouton Filtres (mobile) */}
+      <button
+        onClick={() => setShowFilters(!showFilters)}
+        className="md:hidden w-full mb-4 btn-secondary flex items-center justify-center gap-2"
+      >
+        <Filter className="w-4 h-4" />
+        Filtres {hasActiveFilters && `(${[logementFilter, clientFilter, prestataireFilter].filter(Boolean).length})`}
+      </button>
+
       {/* Filtres */}
-      <div className="card mb-6">
+      <div className={`card mb-6 ${showFilters ? 'block' : 'hidden md:block'}`}>
         <h3 className="font-medium text-gray-900 flex items-center gap-2 mb-4">
           <Filter className="w-4 h-4" />
           Filtres
@@ -170,7 +187,7 @@ export function AdminCalendar() {
         {hasActiveFilters && (
           <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              {filteredInterventions.length} intervention(s) affichée(s)
+              {filteredInterventions.length} intervention(s) affichee(s)
             </p>
             <button
               onClick={() => {
@@ -180,39 +197,43 @@ export function AdminCalendar() {
               }}
               className="text-sm text-primary-600 hover:text-primary-700"
             >
-              Réinitialiser
+              Reinitialiser
             </button>
           </div>
         )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* Calendrier */}
         <div className="lg:col-span-2 card">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
+          {/* Navigation mois */}
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <div className="flex items-center gap-1 md:gap-2">
               <button onClick={goToPreviousMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <h2 className="text-xl font-semibold text-gray-900 min-w-[180px] text-center">
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900 min-w-[140px] md:min-w-[180px] text-center">
                 {MONTHS[month]} {year}
               </h2>
               <button onClick={goToNextMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
-            <button onClick={goToToday} className="btn-secondary text-sm">
+            <button onClick={goToToday} className="btn-secondary text-xs md:text-sm">
               Aujourd'hui
             </button>
           </div>
 
+          {/* Jours de la semaine */}
           <div className="grid grid-cols-7 gap-1 mb-2">
             {DAYS.map((day) => (
-              <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
+              <div key={day} className="text-center text-xs md:text-sm font-medium text-gray-500 py-1 md:py-2">
                 {day}
               </div>
             ))}
           </div>
 
+          {/* Grille du calendrier */}
           <div className="grid grid-cols-7 gap-1">
             {calendarDays.map((item, index) => {
               const interventionsForDay = item.date ? interventionsByDate[item.date] || [] : [];
@@ -220,70 +241,86 @@ export function AdminCalendar() {
               const isSelected = item.date === selectedDate;
 
               return (
-                <div
+                <button
                   key={index}
                   onClick={() => item.date && setSelectedDate(item.date)}
+                  disabled={item.day === null}
                   className={`
-                    min-h-[80px] p-2 border rounded-lg cursor-pointer transition-colors
-                    ${item.day === null ? 'bg-gray-50 cursor-default' : 'hover:bg-gray-50'}
-                    ${isToday(item.date) ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}
-                    ${isSelected ? 'ring-2 ring-primary-500' : ''}
+                    min-h-[60px] md:min-h-[80px] p-1 md:p-2 border rounded-lg transition-all text-left
+                    ${item.day === null ? 'bg-gray-50 cursor-default border-transparent' : 'hover:bg-gray-50 border-gray-200'}
+                    ${isToday(item.date) ? 'border-primary-500 border-2 bg-primary-50' : ''}
+                    ${isSelected ? 'ring-2 ring-primary-500 bg-primary-50' : ''}
                   `}
                 >
                   {item.day && (
                     <>
-                      <span className={`text-sm font-medium ${isToday(item.date) ? 'text-primary-700' : 'text-gray-900'}`}>
+                      <span className={`text-xs md:text-sm font-medium ${isToday(item.date) ? 'text-primary-700' : 'text-gray-900'}`}>
                         {item.day}
                       </span>
                       {hasInterventions && (
-                        <div className="mt-1 space-y-1">
-                          {interventionsForDay.slice(0, 2).map((intervention) => (
-                            <div key={intervention.id} className="text-xs truncate px-1 py-0.5 rounded bg-primary-100 text-primary-700">
-                              {intervention.logement?.name}
-                            </div>
-                          ))}
-                          {interventionsForDay.length > 2 && (
-                            <div className="text-xs text-gray-500">+{interventionsForDay.length - 2} autre(s)</div>
-                          )}
+                        <div className="mt-1">
+                          {/* Mobile: juste un indicateur */}
+                          <div className="flex items-center gap-1 md:hidden">
+                            <span className="w-2 h-2 rounded-full bg-primary-500" />
+                            <span className="text-xs text-gray-600">{interventionsForDay.length}</span>
+                          </div>
+                          {/* Desktop: apercu */}
+                          <div className="hidden md:block space-y-1">
+                            {interventionsForDay.slice(0, 2).map((intervention) => (
+                              <div key={intervention.id} className="text-xs truncate px-1 py-0.5 rounded bg-primary-100 text-primary-700">
+                                {intervention.logement?.name}
+                              </div>
+                            ))}
+                            {interventionsForDay.length > 2 && (
+                              <div className="text-xs text-gray-500">+{interventionsForDay.length - 2} autre(s)</div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
         </div>
 
+        {/* Liste des interventions du jour selectionne */}
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CalendarIcon className="w-5 h-5 text-gray-400" />
             {selectedDate
-              ? new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-              : 'Sélectionnez un jour'}
+              ? formatSelectedDate(selectedDate)
+              : 'Selectionnez un jour'}
           </h3>
 
           {!selectedDate ? (
-            <p className="text-gray-500 text-sm">Cliquez sur un jour pour voir les interventions prévues.</p>
+            <p className="text-gray-500 text-sm">Cliquez sur un jour pour voir les interventions prevues.</p>
           ) : selectedInterventions.length === 0 ? (
-            <p className="text-gray-500 text-sm">Aucune intervention prévue ce jour.</p>
+            <p className="text-gray-500 text-sm">Aucune intervention prevue ce jour.</p>
           ) : (
             <div className="space-y-3">
               {selectedInterventions.map((intervention) => (
                 <div
                   key={intervention.id}
                   onClick={() => navigate(`/admin/interventions/${intervention.id}`)}
-                  className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                  className="p-3 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors"
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                     <span className="font-medium text-gray-900">{intervention.logement?.name}</span>
                     <StatusBadge status={intervention.status} />
                   </div>
+                  {intervention.checkin_meme_jour && (
+                    <div className="flex items-center gap-1 mb-2 text-orange-600 text-xs font-medium">
+                      <Zap className="w-3 h-3" />
+                      Check-in meme jour
+                    </div>
+                  )}
                   <p className="text-sm text-gray-600">{intervention.logement?.city}</p>
                   {intervention.prestataire ? (
                     <p className="text-sm text-gray-500 mt-1">{intervention.prestataire.full_name}</p>
                   ) : (
-                    <p className="text-sm text-orange-600 mt-1 font-medium">Non assigné</p>
+                    <p className="text-sm text-orange-600 mt-1 font-medium">Non assigne</p>
                   )}
                 </div>
               ))}
@@ -291,6 +328,38 @@ export function AdminCalendar() {
           )}
         </div>
       </div>
+
+      {/* Vue liste mobile quand un jour est selectionne */}
+      {selectedDate && selectedInterventions.length > 0 && (
+        <div className="mt-4 lg:hidden card">
+          <h3 className="font-semibold mb-3">
+            {formatSelectedDate(selectedDate)}
+          </h3>
+          <div className="space-y-2">
+            {selectedInterventions.map((intervention) => (
+              <div
+                key={intervention.id}
+                onClick={() => navigate(`/admin/interventions/${intervention.id}`)}
+                className="block p-3 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer"
+              >
+                <div className="flex justify-between items-start gap-2 flex-wrap">
+                  <div>
+                    <p className="font-medium">{intervention.logement?.name}</p>
+                    <p className="text-sm text-gray-600">{intervention.logement?.city}</p>
+                    {intervention.checkin_meme_jour && (
+                      <div className="flex items-center gap-1 mt-1 text-orange-600 text-xs font-medium">
+                        <Zap className="w-3 h-3" />
+                        Check-in meme jour
+                      </div>
+                    )}
+                  </div>
+                  <StatusBadge status={intervention.status} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

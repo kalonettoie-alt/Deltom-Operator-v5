@@ -131,11 +131,14 @@ export interface Intervention {
   status: InterventionStatus;
   nb_voyageurs: number;
   has_baby: boolean;
+  checkin_meme_jour: boolean;
   special_instructions: string | null;
   prix_prestataire_ht: number;
   prix_client_ttc: number;
   started_at: string | null;
   completed_at: string | null;
+  photos_etat_lieux: string[] | null;
+  etat_lieux_at: string | null;
   refused_by: string[];
   created_at: string;
   updated_at: string;
@@ -150,6 +153,7 @@ export interface InterventionInsert {
   status?: InterventionStatus;
   nb_voyageurs?: number;
   has_baby?: boolean;
+  checkin_meme_jour?: boolean;
   special_instructions?: string | null;
   prix_prestataire_ht?: number;
   prix_client_ttc?: number;
@@ -165,11 +169,14 @@ export interface InterventionUpdate {
   status?: InterventionStatus;
   nb_voyageurs?: number;
   has_baby?: boolean;
+  checkin_meme_jour?: boolean;
   special_instructions?: string | null;
   prix_prestataire_ht?: number;
   prix_client_ttc?: number;
   started_at?: string | null;
   completed_at?: string | null;
+  photos_etat_lieux?: string[] | null;
+  etat_lieux_at?: string | null;
   refused_by?: string[];
 }
 
@@ -191,6 +198,7 @@ export interface Rapport {
   degats_signales: boolean;
   degats_description: string | null;
   degats_photos: string[];
+  taches_effectuees: unknown | null;
   created_at: string;
 }
 
@@ -200,6 +208,7 @@ export interface RapportInsert {
   degats_signales?: boolean;
   degats_description?: string | null;
   degats_photos?: string[];
+  taches_effectuees?: unknown | null;
 }
 
 export interface RapportUpdate {
@@ -207,4 +216,5 @@ export interface RapportUpdate {
   degats_signales?: boolean;
   degats_description?: string | null;
   degats_photos?: string[];
+  taches_effectuees?: unknown | null;
 }

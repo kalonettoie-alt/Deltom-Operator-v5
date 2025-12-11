@@ -124,8 +124,8 @@ export function AdminDashboard() {
         const totalRevenus = revenusData?.reduce((sum, intervention) =>
           sum + (intervention.prix_client_ttc || 0), 0) || 0;
 
-        // Interventions à venir (aujourd'hui et après, pas terminées)
-        const { data: upcoming } = await supabase
+        // Interventions du jour (toutes les interventions d'aujourd'hui)
+        const { data: todayInterventions } = await supabase
           .from('interventions')
           .select(`
             *,
@@ -133,10 +133,8 @@ export function AdminDashboard() {
             client:profiles!interventions_client_id_fkey(*),
             prestataire:profiles!interventions_prestataire_id_fkey(*)
           `)
-          .gte('date', today)
-          .neq('status', 'terminee')
-          .order('date', { ascending: true })
-          .limit(5);
+          .eq('date', today)
+          .order('status', { ascending: true });
 
         setStats({
           interventionsToday: todayCount || 0,
@@ -147,7 +145,7 @@ export function AdminDashboard() {
           revenusMonth: totalRevenus,
         });
 
-        setUpcomingInterventions((upcoming as InterventionWithRelations[]) || []);
+        setUpcomingInterventions((todayInterventions as InterventionWithRelations[]) || []);
       } catch (error) {
         console.error('Erreur chargement stats:', error);
       } finally {
@@ -281,7 +279,7 @@ export function AdminDashboard() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Interventions à venir
+            Interventions du jour
           </h2>
           <button
             onClick={() => navigate('/admin/interventions')}
@@ -297,7 +295,7 @@ export function AdminDashboard() {
           </div>
         ) : upcomingInterventions.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            Aucune intervention programmée
+            Aucune intervention aujourd'hui
           </div>
         ) : (
           <div className="space-y-3">

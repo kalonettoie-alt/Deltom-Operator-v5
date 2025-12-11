@@ -1,14 +1,33 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Calendar, Users, Baby, Clock, User, FileText } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, Baby, Clock, User, FileText, ZoomIn, CheckSquare, Circle, CheckCircle, Zap, AlertTriangle, Camera } from 'lucide-react';
 import { useIntervention } from '../../hooks/useInterventions';
 import { Loader } from '../../components/ui/Loader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ImageLightbox } from '../../components/ui/ImageLightbox';
 import { InterventionTypeLabels } from '../../types';
+
+interface TacheRapport {
+  id: string;
+  label: string;
+  effectuee: boolean;
+}
 
 export function AdminInterventionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { intervention, isLoading, error } = useIntervention(id || '');
+
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+
+  const openLightbox = (images: string[], index: number) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
@@ -40,13 +59,15 @@ export function AdminInterventionDetail() {
   if (error || !intervention) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600 mb-4">{error || 'Intervention non trouvée'}</p>
+        <p className="text-red-600 mb-4">{error || 'Intervention non trouvee'}</p>
         <button onClick={() => navigate('/admin/interventions')} className="btn-secondary">
-          Retour à la liste
+          Retour a la liste
         </button>
       </div>
     );
   }
+
+  const tachesEffectuees = intervention.rapport?.taches_effectuees as TacheRapport[] | undefined;
 
   return (
     <div>
@@ -59,8 +80,8 @@ export function AdminInterventionDetail() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
               Intervention du {formatDate(intervention.date)}
             </h1>
             <StatusBadge status={intervention.status} />
@@ -68,6 +89,21 @@ export function AdminInterventionDetail() {
           <p className="text-gray-600 mt-1">{intervention.logement?.name}</p>
         </div>
       </div>
+
+      {/* Alerte Check-in meme jour */}
+      {intervention.checkin_meme_jour && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3 mb-6">
+          <div className="p-2 bg-orange-100 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-orange-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-orange-800">Check-in prevu le meme jour</p>
+            <p className="text-sm text-orange-700">
+              Les voyageurs arrivent juste apres le menage.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Infos logement */}
@@ -86,7 +122,7 @@ export function AdminInterventionDetail() {
               </p>
               {intervention.logement.access_code && (
                 <p className="text-sm text-gray-500">
-                  <span className="font-medium">Code d'accès:</span> {intervention.logement.access_code}
+                  <span className="font-medium">Code d'acces:</span> {intervention.logement.access_code}
                 </p>
               )}
               {intervention.logement.instructions && (
@@ -102,13 +138,19 @@ export function AdminInterventionDetail() {
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-gray-400" />
-            Détails
+            Details
           </h2>
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="bg-gray-100 px-2 py-1 rounded text-sm">
                 {InterventionTypeLabels[intervention.type]}
               </span>
+              {intervention.checkin_meme_jour && (
+                <span className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-medium">
+                  <Zap className="w-3 h-3" />
+                  Check-in meme jour
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 text-gray-600">
               <Users className="w-4 h-4" />
@@ -117,13 +159,13 @@ export function AdminInterventionDetail() {
             {intervention.has_baby && (
               <div className="flex items-center gap-2 text-pink-600">
                 <Baby className="w-4 h-4" />
-                <span>Équipement bébé requis</span>
+                <span>Equipement bebe requis</span>
               </div>
             )}
             {intervention.special_instructions && (
               <div className="pt-2 border-t border-gray-100">
                 <p className="text-sm text-gray-600">
-                  <span className="font-medium">Instructions spéciales:</span>{' '}
+                  <span className="font-medium">Instructions speciales:</span>{' '}
                   {intervention.special_instructions}
                 </p>
               </div>
@@ -163,7 +205,7 @@ export function AdminInterventionDetail() {
               )}
             </div>
           ) : (
-            <p className="text-orange-600 font-medium">Aucun prestataire assigné</p>
+            <p className="text-orange-600 font-medium">Aucun prestataire assigne</p>
           )}
         </div>
 
@@ -177,7 +219,7 @@ export function AdminInterventionDetail() {
             <div className="space-y-2">
               {intervention.started_at && (
                 <p className="text-gray-600">
-                  <span className="font-medium">Début:</span> {formatDateTime(intervention.started_at)}
+                  <span className="font-medium">Debut:</span> {formatDateTime(intervention.started_at)}
                 </p>
               )}
               {intervention.completed_at && (
@@ -214,14 +256,42 @@ export function AdminInterventionDetail() {
           <div className="space-y-2">
             <p className="text-gray-600">
               <span className="font-medium">Prix prestataire HT:</span>{' '}
-              {intervention.prix_prestataire_ht.toFixed(2)} €
+              {intervention.prix_prestataire_ht.toFixed(2)} EUR
             </p>
             <p className="text-gray-600">
               <span className="font-medium">Prix client TTC:</span>{' '}
-              {intervention.prix_client_ttc.toFixed(2)} €
+              {intervention.prix_client_ttc.toFixed(2)} EUR
             </p>
           </div>
         </div>
+
+        {/* Photos etat des lieux */}
+        {intervention.photos_etat_lieux && (intervention.photos_etat_lieux as string[]).length > 0 && (
+          <div className="card lg:col-span-2">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Camera className="w-5 h-5 text-gray-400" />
+              Photos etat des lieux (avant)
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {(intervention.photos_etat_lieux as string[]).map((photo, index) => (
+                <div
+                  key={index}
+                  onClick={() => openLightbox(intervention.photos_etat_lieux as string[], index)}
+                  className="cursor-pointer group relative overflow-hidden rounded-xl"
+                >
+                  <img
+                    src={photo}
+                    alt={`Etat des lieux ${index + 1}`}
+                    className="w-full h-32 object-cover transition-transform group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                    <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Rapport */}
         {intervention.rapport && (
@@ -230,36 +300,86 @@ export function AdminInterventionDetail() {
               <FileText className="w-5 h-5 text-gray-400" />
               Rapport
             </h2>
-            <div className="space-y-4">
-              {intervention.rapport.photos_intervention.length > 0 && (
+            <div className="space-y-6">
+              {/* Photos intervention */}
+              {intervention.rapport.photos_intervention && intervention.rapport.photos_intervention.length > 0 && (
                 <div>
-                  <p className="font-medium text-gray-700 mb-2">Photos de l'intervention:</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {intervention.rapport.photos_intervention.map((photo, index) => (
-                      <img
+                  <p className="font-medium text-gray-700 mb-3">Photos de l'intervention:</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {intervention.rapport.photos_intervention.map((url, index) => (
+                      <div
                         key={index}
-                        src={photo}
-                        alt={`Photo ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg"
-                      />
+                        onClick={() => openLightbox(intervention.rapport!.photos_intervention, index)}
+                        className="cursor-pointer group relative overflow-hidden rounded-xl"
+                      >
+                        <img
+                          src={url}
+                          alt={`Photo ${index + 1}`}
+                          className="w-full h-32 md:h-40 object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
 
+              {/* Taches effectuees */}
+              {tachesEffectuees && tachesEffectuees.length > 0 && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <CheckSquare className="w-5 h-5 text-green-600" />
+                    Taches effectuees
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {tachesEffectuees.map((tache) => (
+                      <div
+                        key={tache.id}
+                        className={`flex items-center gap-2 p-2 rounded-lg ${
+                          tache.effectuee ? 'bg-green-50' : 'bg-white'
+                        }`}
+                      >
+                        {tache.effectuee ? (
+                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        ) : (
+                          <Circle className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                        )}
+                        <span className={tache.effectuee ? 'text-gray-900' : 'text-gray-500'}>
+                          {tache.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Degats signales */}
               {intervention.rapport.degats_signales && (
-                <div className="pt-4 border-t border-gray-200">
-                  <p className="font-medium text-red-600 mb-2">Dégâts signalés:</p>
-                  <p className="text-gray-600">{intervention.rapport.degats_description}</p>
-                  {intervention.rapport.degats_photos.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2 mt-2">
-                      {intervention.rapport.degats_photos.map((photo, index) => (
-                        <img
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="font-medium text-red-700 mb-2 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    Degats signales
+                  </p>
+                  <p className="text-red-600 mb-3">{intervention.rapport.degats_description}</p>
+                  {intervention.rapport.degats_photos && intervention.rapport.degats_photos.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {intervention.rapport.degats_photos.map((url, index) => (
+                        <div
                           key={index}
-                          src={photo}
-                          alt={`Dégât ${index + 1}`}
-                          className="w-full h-24 object-cover rounded-lg border-2 border-red-200"
-                        />
+                          onClick={() => openLightbox(intervention.rapport!.degats_photos, index)}
+                          className="cursor-pointer group relative overflow-hidden rounded-xl"
+                        >
+                          <img
+                            src={url}
+                            alt={`Degat ${index + 1}`}
+                            className="w-full h-32 object-cover border-2 border-red-300 transition-transform group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                            <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -269,6 +389,14 @@ export function AdminInterventionDetail() {
           </div>
         )}
       </div>
+
+      {/* Lightbox */}
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   );
 }

@@ -52,7 +52,7 @@ export function useInterventions(options: UseInterventionsOptions = {}) {
         query = query.eq('date', options.date);
       }
 
-      const { data, error: fetchError } = await query.order('date', { ascending: true });
+      const { data, error: fetchError } = await query.order('date', { ascending: false });
 
       if (fetchError) throw fetchError;
 

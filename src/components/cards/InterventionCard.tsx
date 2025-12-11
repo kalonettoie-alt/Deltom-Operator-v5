@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users, Baby, Clock, Edit2, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, Users, Baby, Clock, Edit2, Trash2, Zap } from 'lucide-react';
 import { StatusBadge } from '../ui/StatusBadge';
 import { InterventionTypeLabels } from '../../types';
 import type { InterventionWithRelations } from '../../types';
@@ -39,12 +39,18 @@ export function InterventionCard({
       <div className="flex items-start justify-between">
         <div className="flex-1">
           {/* Date et statut */}
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-2 flex-wrap mb-3">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Calendar className="w-4 h-4" />
               <span className="font-medium">{formatDate(intervention.date)}</span>
             </div>
             <StatusBadge status={intervention.status} />
+            {intervention.checkin_meme_jour && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
+                <Zap className="w-3 h-3" />
+                Check-in meme jour
+              </span>
+            )}
           </div>
 
           {/* Logement */}

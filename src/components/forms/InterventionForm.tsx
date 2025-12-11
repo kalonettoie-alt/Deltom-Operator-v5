@@ -34,6 +34,7 @@ export function InterventionForm({
     type: InterventionType;
     nb_voyageurs: number;
     has_baby: boolean;
+    checkin_meme_jour: boolean;
     special_instructions: string;
   }>({
     logement_id: '',
@@ -43,6 +44,7 @@ export function InterventionForm({
     type: 'standard',
     nb_voyageurs: 2,
     has_baby: false,
+    checkin_meme_jour: false,
     special_instructions: '',
   });
 
@@ -59,9 +61,10 @@ export function InterventionForm({
         type: intervention.type,
         nb_voyageurs: intervention.nb_voyageurs,
         has_baby: intervention.has_baby,
+        checkin_meme_jour: intervention.checkin_meme_jour || false,
         special_instructions: intervention.special_instructions || '',
       });
-      // Trouver le logement sélectionné
+      // Trouver le logement selectionne
       const logement = logements.find(l => l.id === intervention.logement_id);
       if (logement) setSelectedLogement(logement);
     }
@@ -138,6 +141,7 @@ export function InterventionForm({
       nb_voyageurs: formData.nb_voyageurs,
       has_baby: formData.has_baby,
       special_instructions: formData.special_instructions || null,
+      checkin_meme_jour: formData.checkin_meme_jour,
       prix_prestataire_ht: logement?.prix_prestataire_ht || 0,
       prix_client_ttc: logement?.prix_client_ttc || 0,
     });
@@ -245,39 +249,59 @@ export function InterventionForm({
         )}
       </div>
 
-      {/* Voyageurs et bébé */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="nb_voyageurs" className="block text-sm font-medium text-gray-700 mb-1">
-            Nombre de voyageurs
-          </label>
-          <input
-            type="number"
-            id="nb_voyageurs"
-            name="nb_voyageurs"
-            value={formData.nb_voyageurs}
-            onChange={handleChange}
-            min={1}
-            max={20}
-            className="input-field"
-            disabled={isSubmitting}
-          />
-        </div>
+      {/* Voyageurs */}
+      <div>
+        <label htmlFor="nb_voyageurs" className="block text-sm font-medium text-gray-700 mb-1">
+          Nombre de voyageurs
+        </label>
+        <input
+          type="number"
+          id="nb_voyageurs"
+          name="nb_voyageurs"
+          value={formData.nb_voyageurs}
+          onChange={handleChange}
+          min={1}
+          max={20}
+          className="input-field"
+          disabled={isSubmitting}
+        />
+      </div>
 
-        <div className="flex items-center pt-6">
+      {/* Options */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">Options</label>
+
+        <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
           <input
             type="checkbox"
             id="has_baby"
             name="has_baby"
             checked={formData.has_baby}
             onChange={handleChange}
-            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            className="h-5 w-5 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
             disabled={isSubmitting}
           />
-          <label htmlFor="has_baby" className="ml-2 block text-sm text-gray-700">
-            Lit bébé / équipement bébé
-          </label>
-        </div>
+          <div>
+            <span className="font-medium text-gray-900">Lit bebe a preparer</span>
+            <p className="text-sm text-gray-500">Installer et preparer le lit bebe</p>
+          </div>
+        </label>
+
+        <label className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors border border-orange-200">
+          <input
+            type="checkbox"
+            id="checkin_meme_jour"
+            name="checkin_meme_jour"
+            checked={formData.checkin_meme_jour}
+            onChange={handleChange}
+            className="h-5 w-5 text-orange-600 focus:ring-orange-500 border-orange-300 rounded"
+            disabled={isSubmitting}
+          />
+          <div>
+            <span className="font-medium text-orange-800">Check-in prevu le meme jour</span>
+            <p className="text-sm text-orange-600">Les voyageurs arrivent juste apres le menage</p>
+          </div>
+        </label>
       </div>
 
       {/* Instructions spéciales */}

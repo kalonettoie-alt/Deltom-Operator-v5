@@ -148,18 +148,6 @@ export function Layout() {
             {/* Séparateur */}
             <div className="border-t border-gray-200 mx-4" />
 
-            {/* Profil */}
-            <div className="p-4">
-              <Link
-                to={`/${profile?.role}/profil`}
-                onClick={closeMobileMenu}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <User className="w-5 h-5" />
-                <span className="font-medium">Mon profil</span>
-              </Link>
-            </div>
-
             {/* Bouton déconnexion en bas */}
             <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
               <button
