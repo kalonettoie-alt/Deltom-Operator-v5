@@ -4,7 +4,6 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { BottomNav } from './BottomNav';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../config/supabase';
 import {
   X,
   Home,
@@ -15,7 +14,6 @@ import {
   UserCog,
   Briefcase,
   LogOut,
-  User,
 } from 'lucide-react';
 
 // Items de navigation par rôle pour le drawer mobile
@@ -42,7 +40,7 @@ const prestataireNavItems = [
 
 export function Layout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { profile, logout } = useAuth();
+  const { profile, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -58,8 +56,7 @@ export function Layout() {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      if (logout) logout();
+      await signOut();
       navigate('/login');
     } catch (error) {
       console.error('Erreur déconnexion:', error);

@@ -121,7 +121,7 @@ export function AdminDashboard() {
           .gte('date', firstDayOfMonth)
           .lte('date', lastDayOfMonth);
 
-        const totalRevenus = revenusData?.reduce((sum, intervention) =>
+        const totalRevenus = (revenusData as { prix_client_ttc: number }[] | null)?.reduce((sum, intervention) =>
           sum + (intervention.prix_client_ttc || 0), 0) || 0;
 
         // Interventions du jour (toutes les interventions d'aujourd'hui)
