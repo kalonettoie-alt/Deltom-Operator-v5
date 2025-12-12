@@ -21,10 +21,10 @@ export function ClientLogements() {
   }
 
   return (
-    <div>
+    <div className="pb-20 md:pb-0">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Mes logements</h1>
-        <p className="text-gray-600 mt-1">{logements.length} logement(s) enregistré(s)</p>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Mes logements</h1>
+        <p className="text-sm md:text-base text-gray-600 mt-1">{logements.length} logement(s) enregistré(s)</p>
       </div>
 
       {logements.length === 0 ? (
@@ -34,7 +34,7 @@ export function ClientLogements() {
           description="Vous n'avez pas encore de logement enregistré. Contactez l'administrateur pour en ajouter."
         />
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3 md:gap-4">
           {logements.map((logement) => (
             <LogementCard key={logement.id} logement={logement} showClient={false} />
           ))}

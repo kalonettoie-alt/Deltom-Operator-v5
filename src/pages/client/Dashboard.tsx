@@ -93,27 +93,27 @@ export function ClientDashboard() {
   }
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
+    <div className="pb-20 md:pb-0">
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900">
           Bonjour, {profile?.full_name}
         </h1>
-        <p className="text-gray-600 mt-1">Suivez vos logements et interventions</p>
+        <p className="text-sm md:text-base text-gray-600 mt-1">Suivez vos logements et interventions</p>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {/* Stats cards - grille 2x2 sur mobile */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         <div
           className="card cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => navigate('/client/logements')}
         >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Building2 className="w-6 h-6 text-blue-600" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-blue-100 rounded-xl">
+              <Building2 className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Mes logements</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.logements}</p>
+              <p className="text-xs md:text-sm text-gray-500">Logements</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.logements}</p>
             </div>
           </div>
         </div>
@@ -122,38 +122,37 @@ export function ClientDashboard() {
           className="card cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => navigate('/client/interventions')}
         >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-100 rounded-xl">
-              <ClipboardList className="w-6 h-6 text-yellow-600" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-yellow-100 rounded-xl">
+              <ClipboardList className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Interventions en cours</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.enCours}</p>
+              <p className="text-xs md:text-sm text-gray-500">En cours</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.enCours}</p>
             </div>
           </div>
         </div>
 
         <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-green-100 rounded-xl">
+              <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Terminées ce mois</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.completedMonth}</p>
+              <p className="text-xs md:text-sm text-gray-500">Terminées</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.completedMonth}</p>
             </div>
           </div>
         </div>
 
         <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-200 rounded-xl">
-              <Euro className="w-6 h-6 text-purple-600" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-purple-200 rounded-xl">
+              <Euro className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-purple-600">Facture du mois</p>
-              <p className="text-2xl font-bold text-purple-900">{stats.factureMonth.toFixed(2)}€</p>
-              <p className="text-xs text-purple-500">{stats.completedMonth} intervention(s)</p>
+              <p className="text-xs md:text-sm text-purple-600">Facture</p>
+              <p className="text-lg md:text-2xl font-bold text-purple-900">{stats.factureMonth.toFixed(0)}€</p>
             </div>
           </div>
         </div>

@@ -80,10 +80,10 @@ export function ClientInterventions() {
   }
 
   return (
-    <div>
+    <div className="pb-20 md:pb-0">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Mes interventions</h1>
-        <p className="text-gray-600 mt-1">{interventions.length} intervention(s)</p>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Mes interventions</h1>
+        <p className="text-sm md:text-base text-gray-600 mt-1">{interventions.length} intervention(s)</p>
       </div>
 
       {/* Filtres */}
@@ -133,30 +133,30 @@ export function ClientInterventions() {
           description="Aucune intervention ne correspond à vos critères."
         />
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3 md:gap-4">
           {sortedInterventions.map((intervention) => (
             <div
               key={intervention.id}
               className="card hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => setSelectedIntervention(intervention)}
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="font-medium text-gray-900">{formatDate(intervention.date)}</span>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 md:gap-3 mb-2 flex-wrap">
+                    <span className="text-sm md:text-base font-medium text-gray-900">{formatDate(intervention.date)}</span>
                     <ClientStatusBadge status={getClientStatus(intervention.status)} />
                   </div>
-                  <h3 className="font-semibold text-gray-900">{intervention.logement?.name}</h3>
-                  <p className="text-sm text-gray-600">
+                  <h3 className="font-semibold text-gray-900 text-sm md:text-base">{intervention.logement?.name}</h3>
+                  <p className="text-xs md:text-sm text-gray-600 truncate">
                     {intervention.logement?.address}, {intervention.logement?.city}
                   </p>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 md:gap-4 mt-2 text-xs md:text-sm text-gray-500 flex-wrap">
                     <span>{InterventionTypeLabels[intervention.type]}</span>
                     <span>{intervention.nb_voyageurs} voyageurs</span>
                   </div>
                 </div>
                 {intervention.status === 'terminee' && intervention.rapport && (
-                  <div className="flex items-center gap-1 text-green-600 text-sm">
+                  <div className="flex items-center gap-1 text-green-600 text-xs md:text-sm flex-shrink-0">
                     <FileText className="w-4 h-4" />
                     Rapport disponible
                   </div>
