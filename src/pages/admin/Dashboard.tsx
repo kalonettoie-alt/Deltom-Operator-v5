@@ -113,16 +113,28 @@ export function AdminDashboard() {
           .select('*', { count: 'exact', head: true })
           .eq('role', 'prestataire');
 
-        // Revenus du mois (interventions terminées)
+        // Gain du mois (interventions terminées) = prix_client - prix_prestataire + blanchisserie
         const { data: revenusData } = await supabase
           .from('interventions')
-          .select('prix_client_ttc')
+          .select('prix_client_ttc, prix_prestataire_ht, blanchisserie_incluse, prix_blanchisserie')
           .eq('status', 'terminee')
           .gte('date', firstDayOfMonth)
           .lte('date', lastDayOfMonth);
 
-        const totalRevenus = (revenusData as { prix_client_ttc: number }[] | null)?.reduce((sum, intervention) =>
-          sum + (intervention.prix_client_ttc || 0), 0) || 0;
+        interface InterventionRevenu {
+          prix_client_ttc: number;
+          prix_prestataire_ht: number;
+          blanchisserie_incluse: boolean;
+          prix_blanchisserie: number;
+        }
+
+        const totalRevenus = (revenusData as InterventionRevenu[] | null)?.reduce((sum, intervention) => {
+          const prixClient = intervention.prix_client_ttc || 0;
+          const prixPrestataire = intervention.prix_prestataire_ht || 0;
+          const blanchisserie = intervention.blanchisserie_incluse ? (intervention.prix_blanchisserie || 0) : 0;
+          const gain = prixClient + blanchisserie - prixPrestataire;
+          return sum + gain;
+        }, 0) || 0;
 
         // Interventions du jour (toutes les interventions d'aujourd'hui)
         const { data: todayInterventions } = await supabase
@@ -221,11 +233,11 @@ export function AdminDashboard() {
         </button>
       </div>
 
-      {/* Carte Revenus du mois - Pleine largeur */}
+      {/* Carte Gain du mois - Pleine largeur */}
       <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 md:p-6 text-white mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-emerald-100 text-sm mb-1">Revenus générés</p>
+            <p className="text-emerald-100 text-sm mb-1">Gain net du mois</p>
             <p className="text-3xl md:text-4xl font-bold">
               {isLoadingStats ? '...' : formatCurrency(stats.revenusMonth)}
             </p>
@@ -304,6 +316,7 @@ export function AdminDashboard() {
                 key={intervention.id}
                 intervention={intervention}
                 showClient
+                showTarification
                 onClick={() => navigate(`/admin/interventions/${intervention.id}`)}
               />
             ))}

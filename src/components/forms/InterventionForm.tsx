@@ -220,14 +220,56 @@ export function InterventionForm({
         {errors.logement_id && <p className="text-red-500 text-sm mt-1">{errors.logement_id}</p>}
       </div>
 
-      {/* Affichage des prix du logement sélectionné */}
-      {selectedLogement && (
-        <div className="bg-gray-50 rounded-lg p-3 text-sm">
-          <p className="font-medium text-gray-700 mb-1">Prix par défaut du logement :</p>
-          <div className="flex gap-4 text-gray-600">
-            <span>Prestataire HT : {selectedLogement.prix_prestataire_ht ?? 0}€</span>
-            <span>Client TTC : {selectedLogement.prix_client_ttc ?? 0}€</span>
+      {/* Récapitulatif tarification */}
+      {selectedLogement && ((selectedLogement.prix_prestataire_ht ?? 0) > 0 || (selectedLogement.prix_client_ttc ?? 0) > 0) && (
+        <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+          <h4 className="font-semibold text-blue-900 mb-3">📋 Recapitulatif tarification</h4>
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Prix prestataire</span>
+              <span className="font-medium text-red-600">-{(selectedLogement.prix_prestataire_ht ?? 0).toFixed(2)} €</span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-gray-600">Prix client menage</span>
+              <span className="text-green-600">+{(selectedLogement.prix_client_ttc ?? 0).toFixed(2)} €</span>
+            </div>
+
+            {selectedLogement.type_blanchisserie === 'intervention' && (selectedLogement.prix_blanchisserie ?? 0) > 0 && (
+              <div className="flex justify-between text-purple-700">
+                <span>+ Blanchisserie 🧺</span>
+                <span>+{(selectedLogement.prix_blanchisserie ?? 0).toFixed(2)} €</span>
+              </div>
+            )}
+
+            <div className="flex justify-between pt-2 border-t border-blue-200 font-medium">
+              <span>Total client</span>
+              <span className="font-bold">
+                {(
+                  (selectedLogement.prix_client_ttc ?? 0) +
+                  (selectedLogement.type_blanchisserie === 'intervention' ? (selectedLogement.prix_blanchisserie ?? 0) : 0)
+                ).toFixed(2)} €
+              </span>
+            </div>
+
+            <div className="flex justify-between pt-2 border-t border-blue-200">
+              <span className="font-medium text-green-700">Gain</span>
+              <span className="font-bold text-green-700">
+                {(
+                  (selectedLogement.prix_client_ttc ?? 0) +
+                  (selectedLogement.type_blanchisserie === 'intervention' ? (selectedLogement.prix_blanchisserie ?? 0) : 0) -
+                  (selectedLogement.prix_prestataire_ht ?? 0)
+                ).toFixed(2)} €
+              </span>
+            </div>
           </div>
+
+          {selectedLogement.type_blanchisserie === 'forfait' && (selectedLogement.prix_blanchisserie ?? 0) > 0 && (
+            <p className="text-xs text-blue-600 mt-3">
+              ℹ️ Blanchisserie en forfait mensuel ({(selectedLogement.prix_blanchisserie ?? 0).toFixed(2)} €/mois) - non incluse par intervention
+            </p>
+          )}
         </div>
       )}
 

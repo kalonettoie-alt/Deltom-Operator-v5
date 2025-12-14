@@ -333,6 +333,7 @@ export function AdminInterventions() {
               key={intervention.id}
               intervention={intervention}
               showClient
+              showTarification
               onEdit={() => handleEdit(intervention)}
               onDelete={() => setDeleteConfirm(intervention.id)}
               onClick={() => handleViewDetail(intervention.id)}

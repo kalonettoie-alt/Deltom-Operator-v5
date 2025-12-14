@@ -71,6 +71,8 @@ export interface ProfileUpdate {
 // ============================================
 // Logement
 // ============================================
+export type TypeBlanchisserie = 'aucune' | 'intervention' | 'forfait';
+
 export interface Logement {
   id: string;
   client_id: string;
@@ -81,8 +83,12 @@ export interface Logement {
   access_code: string | null;
   instructions: string | null;
   photos: string[];
+  // Tarification menage
   prix_prestataire_ht: number | null;
   prix_client_ttc: number | null;
+  // Blanchisserie
+  type_blanchisserie: TypeBlanchisserie;
+  prix_blanchisserie: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -98,6 +104,8 @@ export interface LogementInsert {
   photos?: string[];
   prix_prestataire_ht?: number | null;
   prix_client_ttc?: number | null;
+  type_blanchisserie?: TypeBlanchisserie;
+  prix_blanchisserie?: number | null;
 }
 
 export interface LogementUpdate {
@@ -111,6 +119,8 @@ export interface LogementUpdate {
   photos?: string[];
   prix_prestataire_ht?: number | null;
   prix_client_ttc?: number | null;
+  type_blanchisserie?: TypeBlanchisserie;
+  prix_blanchisserie?: number | null;
 }
 
 // Logement avec le profil du client (pour les jointures)
@@ -133,8 +143,12 @@ export interface Intervention {
   has_baby: boolean;
   checkin_meme_jour: boolean;
   special_instructions: string | null;
+  // Tarification
   prix_prestataire_ht: number;
   prix_client_ttc: number;
+  blanchisserie_incluse: boolean;
+  prix_blanchisserie: number;
+  // Timing
   started_at: string | null;
   completed_at: string | null;
   photos_etat_lieux: string[] | null;
@@ -157,6 +171,8 @@ export interface InterventionInsert {
   special_instructions?: string | null;
   prix_prestataire_ht?: number;
   prix_client_ttc?: number;
+  blanchisserie_incluse?: boolean;
+  prix_blanchisserie?: number;
   refused_by?: string[];
 }
 
@@ -173,6 +189,8 @@ export interface InterventionUpdate {
   special_instructions?: string | null;
   prix_prestataire_ht?: number;
   prix_client_ttc?: number;
+  blanchisserie_incluse?: boolean;
+  prix_blanchisserie?: number;
   started_at?: string | null;
   completed_at?: string | null;
   photos_etat_lieux?: string[] | null;

@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users, Baby, Clock, Edit2, Trash2, Zap } from 'lucide-react';
+import { Calendar, MapPin, Users, Baby, Clock, Edit2, Trash2, Zap, Euro } from 'lucide-react';
 import { StatusBadge } from '../ui/StatusBadge';
 import { InterventionTypeLabels } from '../../types';
 import type { InterventionWithRelations } from '../../types';
@@ -11,6 +11,7 @@ interface InterventionCardProps {
   showLogement?: boolean;
   showClient?: boolean;
   showPrestataire?: boolean;
+  showTarification?: boolean;
 }
 
 export function InterventionCard({
@@ -21,7 +22,14 @@ export function InterventionCard({
   showLogement = true,
   showClient = false,
   showPrestataire = true,
+  showTarification = false,
 }: InterventionCardProps) {
+  // Calcul du gain pour cette intervention
+  const prixClient = intervention.prix_client_ttc || 0;
+  const prixPrestataire = intervention.prix_prestataire_ht || 0;
+  const blanchisserie = intervention.blanchisserie_incluse ? (intervention.prix_blanchisserie || 0) : 0;
+  const gain = prixClient + blanchisserie - prixPrestataire;
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       weekday: 'long',
@@ -120,6 +128,38 @@ export function InterventionCard({
                   - Fin: {new Date(intervention.completed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
+            </div>
+          )}
+
+          {/* Tarification */}
+          {showTarification && (prixClient > 0 || prixPrestataire > 0) && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-2 mb-2">
+                <Euro className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-medium text-gray-700">Tarification</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Prestataire</span>
+                  <span className="text-red-600">-{prixPrestataire.toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Client</span>
+                  <span className="text-green-600">+{prixClient.toFixed(2)} €</span>
+                </div>
+                {blanchisserie > 0 && (
+                  <div className="flex justify-between col-span-2">
+                    <span className="text-gray-500">Blanchisserie</span>
+                    <span className="text-purple-600">+{blanchisserie.toFixed(2)} €</span>
+                  </div>
+                )}
+                <div className="flex justify-between col-span-2 pt-2 border-t border-gray-100">
+                  <span className="font-medium text-gray-700">Gain</span>
+                  <span className={`font-bold ${gain >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {gain.toFixed(2)} €
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </div>

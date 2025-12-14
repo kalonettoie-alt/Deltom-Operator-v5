@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader } from '../ui/Loader';
-import type { Logement, LogementInsert, Profile } from '../../types';
+import type { Logement, LogementInsert, Profile, TypeBlanchisserie } from '../../types';
 
 interface LogementFormProps {
   logement?: Logement | null;
@@ -17,7 +17,7 @@ export function LogementForm({
   onCancel,
   isSubmitting = false,
 }: LogementFormProps) {
-  const [formData, setFormData] = useState<LogementInsert>({
+  const [formData, setFormData] = useState<LogementInsert & { type_blanchisserie: TypeBlanchisserie }>({
     client_id: '',
     name: '',
     address: '',
@@ -27,6 +27,8 @@ export function LogementForm({
     instructions: '',
     prix_prestataire_ht: null,
     prix_client_ttc: null,
+    type_blanchisserie: 'aucune',
+    prix_blanchisserie: null,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -43,9 +45,14 @@ export function LogementForm({
         instructions: logement.instructions || '',
         prix_prestataire_ht: logement.prix_prestataire_ht,
         prix_client_ttc: logement.prix_client_ttc,
+        type_blanchisserie: logement.type_blanchisserie || 'aucune',
+        prix_blanchisserie: logement.prix_blanchisserie,
       });
     }
   }, [logement]);
+
+  // Calculer la marge
+  const margeMenage = (formData.prix_client_ttc || 0) - (formData.prix_prestataire_ht || 0);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -183,44 +190,150 @@ export function LogementForm({
         </div>
       </div>
 
-      {/* Prix par défaut */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="prix_prestataire_ht" className="block text-sm font-medium text-gray-700 mb-1">
-            Prix prestataire HT (€)
-          </label>
-          <input
-            type="number"
-            id="prix_prestataire_ht"
-            name="prix_prestataire_ht"
-            value={formData.prix_prestataire_ht ?? ''}
-            onChange={handleChange}
-            min={0}
-            step="0.01"
-            className="input-field"
-            placeholder="0.00"
-            disabled={isSubmitting}
-          />
-          <p className="text-xs text-gray-500 mt-1">Prix par défaut pour les interventions</p>
+      {/* Section Tarification */}
+      <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+          💰 Tarification
+        </h3>
+
+        {/* Prix menage */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="prix_prestataire_ht" className="block text-sm font-medium text-gray-700 mb-1">
+              Prix prestataire
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                id="prix_prestataire_ht"
+                name="prix_prestataire_ht"
+                value={formData.prix_prestataire_ht ?? ''}
+                onChange={handleChange}
+                min={0}
+                step="0.5"
+                className="input-field pr-8"
+                placeholder="25"
+                disabled={isSubmitting}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Ce que vous payez</p>
+          </div>
+
+          <div>
+            <label htmlFor="prix_client_ttc" className="block text-sm font-medium text-gray-700 mb-1">
+              Prix client (menage)
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                id="prix_client_ttc"
+                name="prix_client_ttc"
+                value={formData.prix_client_ttc ?? ''}
+                onChange={handleChange}
+                min={0}
+                step="0.5"
+                className="input-field pr-8"
+                placeholder="44"
+                disabled={isSubmitting}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Ce que vous facturez</p>
+          </div>
         </div>
 
-        <div>
-          <label htmlFor="prix_client_ttc" className="block text-sm font-medium text-gray-700 mb-1">
-            Prix client TTC (€)
+        {/* Marge calculee */}
+        {(formData.prix_prestataire_ht || 0) > 0 && (formData.prix_client_ttc || 0) > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm text-green-800">
+              Marge menage : <span className="font-bold">{margeMenage.toFixed(2)} €</span>
+            </p>
+          </div>
+        )}
+
+        {/* Blanchisserie */}
+        <div className="pt-4 border-t border-gray-200">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            🧺 Blanchisserie
           </label>
-          <input
-            type="number"
-            id="prix_client_ttc"
-            name="prix_client_ttc"
-            value={formData.prix_client_ttc ?? ''}
-            onChange={handleChange}
-            min={0}
-            step="0.01"
-            className="input-field"
-            placeholder="0.00"
-            disabled={isSubmitting}
-          />
-          <p className="text-xs text-gray-500 mt-1">Prix par défaut pour les interventions</p>
+
+          {/* Choix du type */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <button
+              type="button"
+              onClick={() => setFormData((prev) => ({
+                ...prev,
+                type_blanchisserie: 'aucune',
+                prix_blanchisserie: null,
+              }))}
+              disabled={isSubmitting}
+              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                formData.type_blanchisserie === 'aucune'
+                  ? 'border-gray-500 bg-gray-100'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <p className="font-medium text-sm">Aucune</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormData((prev) => ({
+                ...prev,
+                type_blanchisserie: 'intervention',
+              }))}
+              disabled={isSubmitting}
+              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                formData.type_blanchisserie === 'intervention'
+                  ? 'border-purple-500 bg-purple-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <p className="font-medium text-sm">Par intervention</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormData((prev) => ({
+                ...prev,
+                type_blanchisserie: 'forfait',
+              }))}
+              disabled={isSubmitting}
+              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                formData.type_blanchisserie === 'forfait'
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <p className="font-medium text-sm">Forfait mensuel</p>
+            </button>
+          </div>
+
+          {/* Prix blanchisserie (si pas aucune) */}
+          {formData.type_blanchisserie && formData.type_blanchisserie !== 'aucune' && (
+            <div className="mt-3">
+              <label className="block text-sm text-gray-600 mb-1">
+                {formData.type_blanchisserie === 'intervention'
+                  ? 'Prix par intervention'
+                  : 'Forfait mensuel'}
+              </label>
+              <div className="relative w-full sm:w-1/2">
+                <input
+                  type="number"
+                  name="prix_blanchisserie"
+                  value={formData.prix_blanchisserie ?? ''}
+                  onChange={handleChange}
+                  placeholder={formData.type_blanchisserie === 'intervention' ? '13' : '50'}
+                  className="input-field pr-8"
+                  step="0.5"
+                  min="0"
+                  disabled={isSubmitting}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
