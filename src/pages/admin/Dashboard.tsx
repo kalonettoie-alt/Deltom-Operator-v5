@@ -65,7 +65,14 @@ export function AdminDashboard() {
     activeClients: 0,
     totalLogements: 0,
     totalPrestataires: 0,
-    revenusMonth: 0,
+    // Détail du gain
+    totalFactureClient: 0,
+    totalPayePrestataire: 0,
+    margeMenages: 0,
+    blanchisserieInterventions: 0,
+    blanchisserieForfaits: 0,
+    totalBlanchisserie: 0,
+    gainTotal: 0,
   });
   const [upcomingInterventions, setUpcomingInterventions] = useState<InterventionWithRelations[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
@@ -113,7 +120,7 @@ export function AdminDashboard() {
           .select('*', { count: 'exact', head: true })
           .eq('role', 'prestataire');
 
-        // Gain du mois (interventions terminées) = prix_client - prix_prestataire + blanchisserie
+        // Gain du mois (interventions terminées)
         const { data: revenusData } = await supabase
           .from('interventions')
           .select('prix_client_ttc, prix_prestataire_ht, blanchisserie_incluse, prix_blanchisserie')
@@ -128,13 +135,38 @@ export function AdminDashboard() {
           prix_blanchisserie: number;
         }
 
-        const totalRevenus = (revenusData as InterventionRevenu[] | null)?.reduce((sum, intervention) => {
-          const prixClient = intervention.prix_client_ttc || 0;
-          const prixPrestataire = intervention.prix_prestataire_ht || 0;
-          const blanchisserie = intervention.blanchisserie_incluse ? (intervention.prix_blanchisserie || 0) : 0;
-          const gain = prixClient + blanchisserie - prixPrestataire;
-          return sum + gain;
-        }, 0) || 0;
+        // Calcul détaillé des revenus
+        let totalFactureClient = 0;
+        let totalPayePrestataire = 0;
+        let blanchisserieInterventions = 0;
+
+        (revenusData as InterventionRevenu[] | null)?.forEach((intervention) => {
+          totalFactureClient += intervention.prix_client_ttc || 0;
+          totalPayePrestataire += intervention.prix_prestataire_ht || 0;
+          if (intervention.blanchisserie_incluse) {
+            blanchisserieInterventions += intervention.prix_blanchisserie || 0;
+          }
+        });
+
+        // Récupérer les forfaits blanchisserie mensuels des logements
+        const { data: logementsAvecForfait } = await supabase
+          .from('logements')
+          .select('prix_blanchisserie')
+          .eq('type_blanchisserie', 'forfait');
+
+        interface LogementForfait {
+          prix_blanchisserie: number | null;
+        }
+
+        const blanchisserieForfaits = (logementsAvecForfait as LogementForfait[] | null)?.reduce(
+          (sum, l) => sum + (l.prix_blanchisserie || 0),
+          0
+        ) || 0;
+
+        // Calculs finaux
+        const margeMenages = totalFactureClient - totalPayePrestataire;
+        const totalBlanchisserie = blanchisserieInterventions + blanchisserieForfaits;
+        const gainTotal = margeMenages + totalBlanchisserie;
 
         // Interventions du jour (toutes les interventions d'aujourd'hui)
         const { data: todayInterventions } = await supabase
@@ -154,7 +186,14 @@ export function AdminDashboard() {
           activeClients: clientsCount || 0,
           totalLogements: logementsCount || 0,
           totalPrestataires: prestatairesCount || 0,
-          revenusMonth: totalRevenus,
+          // Détail du gain
+          totalFactureClient,
+          totalPayePrestataire,
+          margeMenages,
+          blanchisserieInterventions,
+          blanchisserieForfaits,
+          totalBlanchisserie,
+          gainTotal,
         });
 
         setUpcomingInterventions((todayInterventions as InterventionWithRelations[]) || []);
@@ -237,9 +276,9 @@ export function AdminDashboard() {
       <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 md:p-6 text-white mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-emerald-100 text-sm mb-1">Gain net du mois</p>
+            <p className="text-emerald-100 text-sm mb-1">Gain total du mois</p>
             <p className="text-3xl md:text-4xl font-bold">
-              {isLoadingStats ? '...' : formatCurrency(stats.revenusMonth)}
+              {isLoadingStats ? '...' : formatCurrency(stats.gainTotal)}
             </p>
             <p className="text-emerald-100 text-sm mt-2 capitalize">{currentMonthName}</p>
           </div>
@@ -248,6 +287,65 @@ export function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Détail des revenus du mois */}
+      {!isLoadingStats && (stats.totalFactureClient > 0 || stats.totalBlanchisserie > 0) && (
+        <div className="card mb-6">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-gray-400" />
+            Detail du mois
+          </h3>
+
+          <div className="space-y-4 text-sm">
+            {/* Section Ménages */}
+            <div className="pb-4 border-b border-gray-100">
+              <p className="text-xs text-gray-500 uppercase font-medium mb-2">Menages</p>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Facture aux clients</span>
+                  <span className="text-green-600 font-medium">+{stats.totalFactureClient.toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Paye aux prestataires</span>
+                  <span className="text-red-600 font-medium">-{stats.totalPayePrestataire.toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-dashed border-gray-200">
+                  <span className="font-medium text-gray-700">Marge menages</span>
+                  <span className="font-semibold">{stats.margeMenages.toFixed(2)} €</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section Blanchisserie */}
+            <div className="pb-4 border-b border-gray-100">
+              <p className="text-xs text-gray-500 uppercase font-medium mb-2">Blanchisserie</p>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Par intervention</span>
+                  <span className="text-purple-600 font-medium">+{stats.blanchisserieInterventions.toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Forfaits mensuels</span>
+                  <span className="text-purple-600 font-medium">+{stats.blanchisserieForfaits.toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-dashed border-gray-200">
+                  <span className="font-medium text-gray-700">Total blanchisserie</span>
+                  <span className="font-semibold text-purple-700">{stats.totalBlanchisserie.toFixed(2)} €</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Gain Total */}
+            <div className="pt-2">
+              <div className="flex justify-between text-lg">
+                <span className="font-bold text-gray-900">GAIN TOTAL</span>
+                <span className="font-bold text-green-600">{stats.gainTotal.toFixed(2)} €</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">= Marge menages + Blanchisserie</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats cards en grille 2x2 */}
       <div className="grid grid-cols-2 gap-3 md:gap-4 mb-6">

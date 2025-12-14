@@ -159,6 +159,10 @@ export function InterventionForm({
     // Récupérer les prix depuis le logement
     const logement = logements.find(l => l.id === formData.logement_id);
 
+    // Déterminer si la blanchisserie est incluse (type 'intervention')
+    const blanchisserieIncluse = logement?.type_blanchisserie === 'intervention';
+    const prixBlanchisserie = blanchisserieIncluse ? (logement?.prix_blanchisserie || 0) : 0;
+
     await onSubmit({
       logement_id: formData.logement_id,
       client_id: formData.client_id,
@@ -172,6 +176,8 @@ export function InterventionForm({
       checkin_meme_jour: formData.checkin_meme_jour,
       prix_prestataire_ht: logement?.prix_prestataire_ht || 0,
       prix_client_ttc: logement?.prix_client_ttc || 0,
+      blanchisserie_incluse: blanchisserieIncluse,
+      prix_blanchisserie: prixBlanchisserie,
     });
   };
 
