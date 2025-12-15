@@ -80,15 +80,16 @@ export function AdminLogements() {
   }
 
   return (
-    <div>
+    <div className="pb-20 md:pb-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Logements</h1>
-          <p className="text-gray-600 mt-1">{logements.length} logement(s) enregistré(s)</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Logements</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-1">{logements.length} logement(s)</p>
         </div>
-        <button onClick={handleCreate} className="btn-primary flex items-center gap-2">
+        <button onClick={handleCreate} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
           <Plus className="w-4 h-4" />
-          Ajouter un logement
+          <span className="hidden sm:inline">Ajouter un logement</span>
+          <span className="sm:hidden">Ajouter</span>
         </button>
       </div>
 
@@ -96,13 +97,13 @@ export function AdminLogements() {
       {logements.length > 0 && (
         <div className="mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher par nom, adresse, ville ou client..."
+              placeholder="Rechercher..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-10"
+              className="input-field pl-10 py-2.5 md:py-2 text-sm"
             />
           </div>
         </div>
@@ -127,7 +128,7 @@ export function AdminLogements() {
           description="Aucun logement ne correspond à votre recherche."
         />
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3 md:gap-4">
           {filteredLogements.map((logement) => (
             <LogementCard
               key={logement.id}

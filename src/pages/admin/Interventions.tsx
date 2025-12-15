@@ -14,6 +14,14 @@ import type { Intervention, InterventionInsert, InterventionStatus } from '../..
 
 type PeriodFilter = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom';
 
+// Helper pour formater une date en YYYY-MM-DD sans problème de timezone
+const formatDateLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export function AdminInterventions() {
   const navigate = useNavigate();
   const { interventions, isLoading, createIntervention, updateIntervention, deleteIntervention } =
@@ -34,38 +42,41 @@ export function AdminInterventions() {
   const [customDateEnd, setCustomDateEnd] = useState('');
   const [logementFilter, setLogementFilter] = useState('');
 
-  // Calculer les dates de période
+  // Calculer les dates de période (utilise formatDateLocal pour éviter les problèmes de timezone)
   const periodDates = useMemo(() => {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = formatDateLocal(today);
 
     switch (periodFilter) {
       case 'today':
         return { start: todayStr, end: todayStr };
       case 'this_week': {
         const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay() + 1);
+        // Lundi de cette semaine (getDay() retourne 0 pour dimanche)
+        const dayOfWeek = today.getDay();
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        startOfWeek.setDate(today.getDate() + diffToMonday);
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
         return {
-          start: startOfWeek.toISOString().split('T')[0],
-          end: endOfWeek.toISOString().split('T')[0],
+          start: formatDateLocal(startOfWeek),
+          end: formatDateLocal(endOfWeek),
         };
       }
       case 'this_month': {
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         return {
-          start: startOfMonth.toISOString().split('T')[0],
-          end: endOfMonth.toISOString().split('T')[0],
+          start: formatDateLocal(startOfMonth),
+          end: formatDateLocal(endOfMonth),
         };
       }
       case 'last_month': {
         const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
         return {
-          start: startOfLastMonth.toISOString().split('T')[0],
-          end: endOfLastMonth.toISOString().split('T')[0],
+          start: formatDateLocal(startOfLastMonth),
+          end: formatDateLocal(endOfLastMonth),
         };
       }
       case 'custom':
@@ -170,15 +181,16 @@ export function AdminInterventions() {
   }
 
   return (
-    <div>
+    <div className="pb-20 md:pb-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Interventions</h1>
-          <p className="text-gray-600 mt-1">{interventions.length} intervention(s)</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Interventions</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-1">{interventions.length} intervention(s)</p>
         </div>
-        <button onClick={handleCreate} className="btn-primary flex items-center gap-2">
+        <button onClick={handleCreate} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
           <Plus className="w-4 h-4" />
-          Nouvelle intervention
+          <span className="hidden sm:inline">Nouvelle intervention</span>
+          <span className="sm:hidden">Nouvelle</span>
         </button>
       </div>
 
@@ -186,25 +198,25 @@ export function AdminInterventions() {
       {interventions.length > 0 && (
         <div className="card mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+            <h3 className="font-medium text-gray-900 flex items-center gap-2 text-sm md:text-base">
               <Filter className="w-4 h-4" />
               Filtres
             </h3>
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                className="text-xs md:text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
               >
                 <X className="w-4 h-4" />
-                Réinitialiser
+                Reinitialiser
               </button>
             )}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-3 md:space-y-0 md:grid md:gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* Recherche */}
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
+            <div className="md:col-span-2 lg:col-span-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Recherche</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -212,35 +224,55 @@ export function AdminInterventions() {
                   placeholder="Logement, client ou prestataire..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="input-field pl-10"
+                  className="input-field pl-10 py-2.5 md:py-2 text-sm"
                 />
               </div>
             </div>
 
-            {/* Statut */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as InterventionStatus | '')}
-                className="input-field"
-              >
-                <option value="">Tous les statuts</option>
-                {Object.entries(InterventionStatusLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+            {/* Statut et Période sur mobile en grille 2 colonnes */}
+            <div className="grid grid-cols-2 gap-3 md:contents">
+              {/* Statut */}
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Statut</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as InterventionStatus | '')}
+                  className="input-field py-2.5 md:py-2 text-sm"
+                >
+                  <option value="">Tous</option>
+                  {Object.entries(InterventionStatusLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Période */}
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Periode</label>
+                <select
+                  value={periodFilter}
+                  onChange={(e) => setPeriodFilter(e.target.value as PeriodFilter)}
+                  className="input-field py-2.5 md:py-2 text-sm"
+                >
+                  <option value="all">Toutes</option>
+                  <option value="today">Aujourd'hui</option>
+                  <option value="this_week">Semaine</option>
+                  <option value="this_month">Ce mois</option>
+                  <option value="last_month">Mois dernier</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
             </div>
 
-            {/* Logement */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Logement</label>
+            {/* Logement - pleine largeur sur mobile */}
+            <div className="md:col-span-2 lg:col-span-1">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Logement</label>
               <select
                 value={logementFilter}
                 onChange={(e) => setLogementFilter(e.target.value)}
-                className="input-field"
+                className="input-field py-2.5 md:py-2 text-sm"
               >
                 <option value="">Tous les logements</option>
                 {logements.map((l) => (
@@ -251,52 +283,35 @@ export function AdminInterventions() {
               </select>
             </div>
 
-            {/* Période */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Période</label>
-              <select
-                value={periodFilter}
-                onChange={(e) => setPeriodFilter(e.target.value as PeriodFilter)}
-                className="input-field"
-              >
-                <option value="all">Toutes les dates</option>
-                <option value="today">Aujourd'hui</option>
-                <option value="this_week">Cette semaine</option>
-                <option value="this_month">Ce mois-ci</option>
-                <option value="last_month">Mois dernier</option>
-                <option value="custom">Personnalisé</option>
-              </select>
-            </div>
-
             {/* Dates personnalisées */}
             {periodFilter === 'custom' && (
-              <>
+              <div className="grid grid-cols-2 gap-3 md:contents">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date début</label>
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Date debut</label>
                   <input
                     type="date"
                     value={customDateStart}
                     onChange={(e) => setCustomDateStart(e.target.value)}
-                    className="input-field"
+                    className="input-field py-2.5 md:py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date fin</label>
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Date fin</label>
                   <input
                     type="date"
                     value={customDateEnd}
                     onChange={(e) => setCustomDateEnd(e.target.value)}
-                    className="input-field"
+                    className="input-field py-2.5 md:py-2 text-sm"
                   />
                 </div>
-              </>
+              </div>
             )}
           </div>
 
           {hasActiveFilters && (
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600">
-                {filteredInterventions.length} intervention(s) trouvée(s)
+              <p className="text-xs md:text-sm text-gray-600">
+                {filteredInterventions.length} intervention(s) trouvee(s)
               </p>
             </div>
           )}
@@ -327,7 +342,7 @@ export function AdminInterventions() {
           }
         />
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3 md:gap-4">
           {filteredInterventions.map((intervention) => (
             <InterventionCard
               key={intervention.id}
