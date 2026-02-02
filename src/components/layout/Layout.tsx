@@ -13,6 +13,7 @@ import {
   Users,
   UserCog,
   Briefcase,
+  BarChart3,
   LogOut,
 } from 'lucide-react';
 
@@ -24,6 +25,7 @@ const adminNavItems = [
   { to: '/admin/calendrier', icon: Calendar, label: 'Calendrier' },
   { to: '/admin/clients', icon: Users, label: 'Clients' },
   { to: '/admin/prestataires', icon: UserCog, label: 'Prestataires' },
+  { to: '/admin/historique', icon: BarChart3, label: 'Historique' },
 ];
 
 const clientNavItems = [
@@ -36,6 +38,7 @@ const prestataireNavItems = [
   { to: '/prestataire', icon: Home, label: 'Dashboard' },
   { to: '/prestataire/missions', icon: Briefcase, label: 'Mes missions' },
   { to: '/prestataire/planning', icon: Calendar, label: 'Planning' },
+  { to: '/prestataire/historique', icon: BarChart3, label: 'Historique' },
 ];
 
 export function Layout() {

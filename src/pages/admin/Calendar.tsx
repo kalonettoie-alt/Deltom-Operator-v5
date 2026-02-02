@@ -4,9 +4,12 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Zap, Plus 
 import { useInterventions } from '../../hooks/useInterventions';
 import { useLogements } from '../../hooks/useLogements';
 import { useClients, usePrestataires } from '../../hooks/useProfiles';
+import { useFilters } from '../../hooks/useFilters';
+import { Modal } from '../../components/ui/Modal';
 import { Loader } from '../../components/ui/Loader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import type { InterventionWithRelations } from '../../types';
+import { InterventionForm } from '../../components/forms/InterventionForm';
+import type { InterventionWithRelations, InterventionInsert } from '../../types';
 
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const DAYS_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -17,19 +20,27 @@ const MONTHS = [
 
 export function AdminCalendar() {
   const navigate = useNavigate();
-  const { interventions, isLoading } = useInterventions({ withRelations: true });
-  const { logements } = useLogements({ withClient: true });
+  const { interventions, isLoading, createIntervention } = useInterventions({ withRelations: true });
+  const { logements, isLoading: isLoadingLogements } = useLogements({ withClient: true });
   const { clients } = useClients();
-  const { prestataires } = usePrestataires();
+  const { prestataires, isLoading: isLoadingPrestataires } = usePrestataires();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Filtres
-  const [logementFilter, setLogementFilter] = useState('');
-  const [clientFilter, setClientFilter] = useState('');
-  const [prestataireFilter, setPrestataireFilter] = useState('');
+  // Modale nouvelle intervention
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Filtres persistés via localStorage (partagés avec Interventions)
+  const { filters, updateFilter, resetFilters: resetAllFilters } = useFilters('admin_interventions');
+  const logementFilter = filters.logement;
+  const clientFilter = filters.client;
+  const prestataireFilter = filters.prestataire;
+  const setLogementFilter = (v: string) => updateFilter('logement', v);
+  const setClientFilter = (v: string) => updateFilter('client', v);
+  const setPrestataireFilter = (v: string) => updateFilter('prestataire', v);
 
   // Obtenir le premier jour du mois et le nombre de jours
   const { firstDayOfMonth, daysInMonth, year, month } = useMemo(() => {
@@ -116,7 +127,21 @@ export function AdminCalendar() {
   }
 
   const handleAddIntervention = () => {
-    navigate('/admin/interventions', { state: { openModal: true, prefilledDate: selectedDate || undefined } });
+    setIsModalOpen(true);
+  };
+
+  const handleCreateIntervention = async (data: InterventionInsert) => {
+    setIsSubmitting(true);
+    try {
+      const { error } = await createIntervention(data);
+      if (error) {
+        alert(error);
+        return;
+      }
+      setIsModalOpen(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -208,7 +233,7 @@ export function AdminCalendar() {
               }}
               className="text-sm text-primary-600 hover:text-primary-700"
             >
-              Reinitialiser
+              Reinitialiser filtres
             </button>
           </div>
         )}
@@ -391,6 +416,30 @@ export function AdminCalendar() {
           </div>
         </div>
       )}
+
+      {/* Modal de création d'intervention */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Nouvelle intervention"
+        size="lg"
+      >
+        {isLoadingLogements || isLoadingPrestataires ? (
+          <div className="flex justify-center py-8">
+            <Loader />
+          </div>
+        ) : (
+          <InterventionForm
+            logements={logements}
+            prestataires={prestataires}
+            onSubmit={handleCreateIntervention}
+            onCancel={() => setIsModalOpen(false)}
+            isSubmitting={isSubmitting}
+            prefilledDate={selectedDate || undefined}
+            prefilledLogement={logementFilter || undefined}
+          />
+        )}
+      </Modal>
     </div>
   );
 }

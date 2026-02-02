@@ -4,6 +4,7 @@ import { Plus, ClipboardList, Search, Filter, X } from 'lucide-react';
 import { useInterventions } from '../../hooks/useInterventions';
 import { useLogements } from '../../hooks/useLogements';
 import { usePrestataires } from '../../hooks/useProfiles';
+import { useFilters } from '../../hooks/useFilters';
 import { Modal } from '../../components/ui/Modal';
 import { Loader } from '../../components/ui/Loader';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -34,13 +35,14 @@ export function AdminInterventions() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  // Filtres
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<InterventionStatus | ''>('');
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
-  const [customDateStart, setCustomDateStart] = useState('');
-  const [customDateEnd, setCustomDateEnd] = useState('');
-  const [logementFilter, setLogementFilter] = useState('');
+  // Filtres persistés via localStorage
+  const { filters, updateFilter, resetFilters, hasActiveFilters } = useFilters('admin_interventions');
+  const searchTerm = filters.search;
+  const statusFilter = filters.status as InterventionStatus | '';
+  const periodFilter = filters.period as PeriodFilter;
+  const customDateStart = filters.customDateStart;
+  const customDateEnd = filters.customDateEnd;
+  const logementFilter = filters.logement;
 
   // Calculer les dates de période (utilise formatDateLocal pour éviter les problèmes de timezone)
   const periodDates = useMemo(() => {
@@ -131,16 +133,13 @@ export function AdminInterventions() {
     navigate(`/admin/interventions/${id}`);
   };
 
-  const resetFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('');
-    setPeriodFilter('all');
-    setCustomDateStart('');
-    setCustomDateEnd('');
-    setLogementFilter('');
-  };
-
-  const hasActiveFilters = searchTerm || statusFilter || periodFilter !== 'all' || logementFilter;
+  // setters qui mettent à jour le hook de filtres persistés
+  const setSearchTerm = (v: string) => updateFilter('search', v);
+  const setStatusFilter = (v: InterventionStatus | '') => updateFilter('status', v);
+  const setPeriodFilter = (v: PeriodFilter) => updateFilter('period', v);
+  const setCustomDateStart = (v: string) => updateFilter('customDateStart', v);
+  const setCustomDateEnd = (v: string) => updateFilter('customDateEnd', v);
+  const setLogementFilter = (v: string) => updateFilter('logement', v);
 
   // Filtrer les interventions
   const filteredInterventions = useMemo(() => {

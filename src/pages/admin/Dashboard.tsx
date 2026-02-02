@@ -17,6 +17,8 @@ import {
   UserCog,
   Euro,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import type { InterventionInsert, InterventionWithRelations } from '../../types';
 
@@ -76,6 +78,11 @@ export function AdminDashboard() {
   });
   const [upcomingInterventions, setUpcomingInterventions] = useState<InterventionWithRelations[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // Détail du gain cliquable
+  const [showGainDetail, setShowGainDetail] = useState(false);
+  const [gainInterventions, setGainInterventions] = useState<InterventionWithRelations[]>([]);
+  const [isLoadingGainDetail, setIsLoadingGainDetail] = useState(false);
 
   // Modal d'intervention
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -207,6 +214,41 @@ export function AdminDashboard() {
     loadStats();
   }, []);
 
+  // Charger le détail des interventions pour le gain
+  const toggleGainDetail = async () => {
+    if (showGainDetail) {
+      setShowGainDetail(false);
+      return;
+    }
+
+    setIsLoadingGainDetail(true);
+    try {
+      const now = new Date();
+      const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const lastDayStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+
+      const { data } = await supabase
+        .from('interventions')
+        .select(`
+          *,
+          logement:logements(name, city),
+          prestataire:profiles!interventions_prestataire_id_fkey(full_name)
+        `)
+        .eq('status', 'terminee')
+        .gte('date', firstDay)
+        .lte('date', lastDayStr)
+        .order('date', { ascending: false });
+
+      setGainInterventions((data as InterventionWithRelations[]) || []);
+      setShowGainDetail(true);
+    } catch (error) {
+      console.error('Erreur chargement détail gain:', error);
+    } finally {
+      setIsLoadingGainDetail(false);
+    }
+  };
+
   const handleCreateIntervention = async (data: InterventionInsert) => {
     setIsSubmitting(true);
     try {
@@ -272,8 +314,11 @@ export function AdminDashboard() {
         </button>
       </div>
 
-      {/* Carte Gain du mois - Pleine largeur */}
-      <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 md:p-6 text-white mb-6">
+      {/* Carte Gain du mois - Cliquable pour voir le détail */}
+      <div
+        className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 md:p-6 text-white mb-6 cursor-pointer hover:from-emerald-600 hover:to-teal-700 transition-all"
+        onClick={toggleGainDetail}
+      >
         <div className="flex items-center justify-between">
           <div>
             <p className="text-emerald-100 text-sm mb-1">Gain total du mois</p>
@@ -282,11 +327,85 @@ export function AdminDashboard() {
             </p>
             <p className="text-emerald-100 text-sm mt-2 capitalize">{currentMonthName}</p>
           </div>
-          <div className="bg-white/20 p-4 rounded-2xl">
-            <Euro className="w-8 h-8 text-white" />
+          <div className="flex flex-col items-center gap-2">
+            <div className="bg-white/20 p-4 rounded-2xl">
+              <Euro className="w-8 h-8 text-white" />
+            </div>
+            {showGainDetail ? (
+              <ChevronUp className="w-5 h-5 text-emerald-200" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-emerald-200" />
+            )}
           </div>
         </div>
+        <p className="text-emerald-200 text-xs mt-2">
+          Cliquez pour {showGainDetail ? 'masquer' : 'voir'} le detail
+        </p>
       </div>
+
+      {/* Détail des interventions du gain */}
+      {showGainDetail && (
+        <div className="card mb-6 max-h-96 overflow-y-auto">
+          <h3 className="font-semibold text-gray-900 mb-3">Interventions terminees du mois</h3>
+
+          {isLoadingGainDetail ? (
+            <div className="flex justify-center py-6">
+              <Loader />
+            </div>
+          ) : gainInterventions.length === 0 ? (
+            <p className="text-gray-500 text-sm py-4">Aucune intervention terminee ce mois</p>
+          ) : (
+            <div className="space-y-2">
+              {gainInterventions.map((intervention) => {
+                const prixClient = (intervention.prix_client_ttc || 0) + (intervention.blanchisserie_incluse ? (intervention.prix_blanchisserie || 0) : 0);
+                const prixPresta = intervention.prix_prestataire_ht || 0;
+                const gain = prixClient - prixPresta;
+
+                return (
+                  <div
+                    key={intervention.id}
+                    className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/admin/interventions/${intervention.id}`); }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-sm text-gray-900">{intervention.logement?.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(intervention.date).toLocaleDateString('fr-FR')}
+                          {intervention.prestataire ? ` - ${intervention.prestataire.full_name}` : ''}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-semibold ${gain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {gain >= 0 ? '+' : ''}{gain.toFixed(2)}€
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Client: {prixClient.toFixed(0)}€ | Presta: {prixPresta.toFixed(0)}€
+                        </p>
+                      </div>
+                    </div>
+                    {intervention.blanchisserie_incluse && (intervention.prix_blanchisserie || 0) > 0 && (
+                      <p className="text-xs text-purple-600 mt-1">
+                        Blanchisserie: +{(intervention.prix_blanchisserie || 0).toFixed(2)}€
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Total forfaits blanchisserie */}
+              {stats.blanchisserieForfaits > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-purple-700">Forfaits blanchisserie mensuels</span>
+                    <span className="font-semibold text-purple-700">+{stats.blanchisserieForfaits.toFixed(2)}€</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Détail des revenus du mois */}
       {!isLoadingStats && (stats.totalFactureClient > 0 || stats.totalBlanchisserie > 0) && (

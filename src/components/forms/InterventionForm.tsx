@@ -17,6 +17,8 @@ interface InterventionFormProps {
   onSubmit: (data: InterventionInsert) => Promise<void>;
   onCancel: () => void;
   isSubmitting?: boolean;
+  prefilledDate?: string;
+  prefilledLogement?: string;
 }
 
 export function InterventionForm({
@@ -26,7 +28,16 @@ export function InterventionForm({
   onSubmit,
   onCancel,
   isSubmitting = false,
+  prefilledDate,
+  prefilledLogement,
 }: InterventionFormProps) {
+  // Initialiser avec les valeurs pré-remplies si fournies
+  const initialLogement = prefilledLogement || '';
+  const initialDate = prefilledDate || new Date().toISOString().split('T')[0];
+  const initialClient = prefilledLogement
+    ? (logements.find(l => l.id === prefilledLogement)?.client_id || '')
+    : '';
+
   const [formData, setFormData] = useState<{
     logement_id: string;
     client_id: string;
@@ -38,10 +49,10 @@ export function InterventionForm({
     checkin_meme_jour: boolean;
     special_instructions: string;
   }>({
-    logement_id: '',
-    client_id: '',
+    logement_id: initialLogement,
+    client_id: initialClient,
     prestataire_id: '',
-    date: new Date().toISOString().split('T')[0],
+    date: initialDate,
     type: 'standard',
     nb_voyageurs: 2,
     has_baby: false,
@@ -95,8 +106,12 @@ export function InterventionForm({
       // Trouver le logement selectionne
       const logement = logements.find(l => l.id === intervention.logement_id);
       if (logement) setSelectedLogement(logement);
+    } else if (prefilledLogement) {
+      // Pré-sélectionner le logement depuis les filtres actifs
+      const logement = logements.find(l => l.id === prefilledLogement);
+      if (logement) setSelectedLogement(logement);
     }
-  }, [intervention, logements]);
+  }, [intervention, logements, prefilledLogement]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
