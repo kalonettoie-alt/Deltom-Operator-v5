@@ -12,6 +12,7 @@ import { AdminPrestataires } from './pages/admin/Prestataires';
 import { AdminInterventions } from './pages/admin/Interventions';
 import { AdminInterventionDetail } from './pages/admin/InterventionDetail';
 import { AdminCalendar } from './pages/admin/Calendar';
+import { AdminHistorique } from './pages/admin/Historique';
 
 // Pages Client
 import { ClientDashboard } from './pages/client/Dashboard';
@@ -23,6 +24,7 @@ import { ProviderDashboard } from './pages/provider/Dashboard';
 import { ProviderMissions } from './pages/provider/Missions';
 import { ProviderMissionDetail } from './pages/provider/MissionDetail';
 import { ProviderPlanning } from './pages/provider/Planning';
+import { ProviderHistorique } from './pages/provider/Historique';
 
 import type { UserRole } from './types';
 import type { ReactNode } from 'react';
@@ -112,6 +114,7 @@ function App() {
         <Route path="interventions" element={<AdminInterventions />} />
         <Route path="interventions/:id" element={<AdminInterventionDetail />} />
         <Route path="calendrier" element={<AdminCalendar />} />
+        <Route path="historique" element={<AdminHistorique />} />
       </Route>
 
       {/* Routes Client */}
@@ -141,6 +144,7 @@ function App() {
         <Route path="missions" element={<ProviderMissions />} />
         <Route path="missions/:id" element={<ProviderMissionDetail />} />
         <Route path="planning" element={<ProviderPlanning />} />
+        <Route path="historique" element={<ProviderHistorique />} />
       </Route>
 
       {/* Login pour les utilisateurs déjà connectés */}

@@ -24,10 +24,17 @@ export function AdminClients() {
   const [clientStats, setClientStats] = useState<ClientStats>({ totalInterventions: 0, interventionsTerminees: 0, totalFacture: 0 });
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
-  // Charger les données du client sélectionné
+  // Charger les données du client sélectionné (stats filtrées au mois en cours)
   useEffect(() => {
     if (selectedClient) {
       setIsLoadingDetails(true);
+
+      // Dates du mois en cours
+      const now = new Date();
+      const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const endOfMonthStr = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
+
       Promise.all([
         supabase.from('logements').select('*').eq('client_id', selectedClient.id),
         supabase
@@ -40,23 +47,29 @@ export function AdminClients() {
           .eq('client_id', selectedClient.id)
           .order('date', { ascending: false })
           .limit(10),
-        // Stats: total interventions
-        supabase
-          .from('interventions')
-          .select('*', { count: 'exact', head: true })
-          .eq('client_id', selectedClient.id),
-        // Stats: terminées
+        // Stats: interventions du mois
         supabase
           .from('interventions')
           .select('*', { count: 'exact', head: true })
           .eq('client_id', selectedClient.id)
-          .eq('status', 'terminee'),
-        // Stats: total facturé
+          .gte('date', startOfMonth)
+          .lte('date', endOfMonthStr),
+        // Stats: terminées du mois
+        supabase
+          .from('interventions')
+          .select('*', { count: 'exact', head: true })
+          .eq('client_id', selectedClient.id)
+          .eq('status', 'terminee')
+          .gte('date', startOfMonth)
+          .lte('date', endOfMonthStr),
+        // Stats: total facturé du mois
         supabase
           .from('interventions')
           .select('prix_client_ttc')
           .eq('client_id', selectedClient.id)
-          .eq('status', 'terminee'),
+          .eq('status', 'terminee')
+          .gte('date', startOfMonth)
+          .lte('date', endOfMonthStr),
       ]).then(([logementsRes, interventionsRes, totalRes, termineesRes, factureRes]) => {
         setClientLogements((logementsRes.data as Logement[]) || []);
         setClientInterventions((interventionsRes.data as InterventionWithRelations[]) || []);
@@ -174,22 +187,27 @@ export function AdminClients() {
               </div>
             ) : (
               <>
-                {/* Statistiques */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-blue-50 rounded-lg p-4 text-center">
-                    <TrendingUp className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-blue-900">{clientStats.totalInterventions}</p>
-                    <p className="text-sm text-blue-600">Interventions totales</p>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-4 text-center">
-                    <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-green-900">{clientStats.interventionsTerminees}</p>
-                    <p className="text-sm text-green-600">Terminées</p>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-4 text-center">
-                    <Receipt className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-purple-900">{clientStats.totalFacture.toFixed(0)}€</p>
-                    <p className="text-sm text-purple-600">Total facturé TTC</p>
+                {/* Statistiques du mois */}
+                <div>
+                  <p className="text-xs text-gray-500 mb-3 capitalize">
+                    {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                  </p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-blue-50 rounded-lg p-4 text-center">
+                      <TrendingUp className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-blue-900">{clientStats.totalInterventions}</p>
+                      <p className="text-sm text-blue-600">Interventions</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 text-center">
+                      <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-green-900">{clientStats.interventionsTerminees}</p>
+                      <p className="text-sm text-green-600">Terminees</p>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 text-center">
+                      <Receipt className="w-6 h-6 text-purple-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-purple-900">{clientStats.totalFacture.toFixed(0)}€</p>
+                      <p className="text-sm text-purple-600">Facture TTC</p>
+                    </div>
                   </div>
                 </div>
 

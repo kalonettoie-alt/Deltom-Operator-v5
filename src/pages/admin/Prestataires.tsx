@@ -24,24 +24,34 @@ export function AdminPrestataires() {
   const [prestataireInterventions, setPrestataireInterventions] = useState<InterventionWithRelations[]>([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
-  // Charger les données du prestataire sélectionné
+  // Charger les données du prestataire sélectionné (mois en cours uniquement)
   useEffect(() => {
     if (selectedPrestataire) {
       setIsLoadingDetails(true);
 
+      // Dates du mois en cours
+      const now = new Date();
+      const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const endOfMonthStr = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
+
       Promise.all([
-        // Missions terminées
+        // Missions terminées (mois en cours)
         supabase
           .from('interventions')
           .select('*', { count: 'exact', head: true })
           .eq('prestataire_id', selectedPrestataire.id)
-          .eq('status', 'terminee'),
-        // Revenus générés (somme des prix prestataire HT des missions terminées)
+          .eq('status', 'terminee')
+          .gte('date', startOfMonth)
+          .lte('date', endOfMonthStr),
+        // Revenus générés (mois en cours)
         supabase
           .from('interventions')
           .select('prix_prestataire_ht')
           .eq('prestataire_id', selectedPrestataire.id)
-          .eq('status', 'terminee'),
+          .eq('status', 'terminee')
+          .gte('date', startOfMonth)
+          .lte('date', endOfMonthStr),
         // Missions refusées (interventions où le prestataire est dans refused_by)
         supabase
           .from('interventions')
@@ -189,9 +199,12 @@ export function AdminPrestataires() {
               </div>
             ) : prestataireStats && (
               <>
-                {/* Statistiques */}
+                {/* Statistiques du mois */}
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Statistiques</h4>
+                  <h4 className="font-semibold text-gray-900 mb-1">Statistiques</h4>
+                  <p className="text-xs text-gray-500 mb-3 capitalize">
+                    {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                  </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-green-50 rounded-lg p-4">
                       <div className="flex items-center gap-2 text-green-700 mb-1">

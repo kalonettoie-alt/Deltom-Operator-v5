@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Zap, Plus } from 'lucide-react';
 import { useInterventions } from '../../hooks/useInterventions';
 import { useLogements } from '../../hooks/useLogements';
 import { useClients, usePrestataires } from '../../hooks/useProfiles';
@@ -115,11 +115,22 @@ export function AdminCalendar() {
     );
   }
 
+  const handleAddIntervention = () => {
+    navigate('/admin/interventions', { state: { openModal: true, prefilledDate: selectedDate || undefined } });
+  };
+
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Calendrier</h1>
-        <p className="text-gray-600 mt-1 text-sm md:text-base">Vue mensuelle des interventions</p>
+    <div className="pb-20 md:pb-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Calendrier</h1>
+          <p className="text-gray-600 mt-1 text-sm md:text-base">Vue mensuelle des interventions</p>
+        </div>
+        <button onClick={handleAddIntervention} className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
+          <Plus className="w-4 h-4" />
+          <span className="hidden sm:inline">Nouvelle mission</span>
+          <span className="sm:hidden">Nouvelle</span>
+        </button>
       </div>
 
       {/* Bouton Filtres (mobile) */}
@@ -287,12 +298,23 @@ export function AdminCalendar() {
 
         {/* Liste des interventions du jour selectionne - Desktop uniquement */}
         <div className="hidden lg:block card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5 text-gray-400" />
-            {selectedDate
-              ? formatSelectedDate(selectedDate)
-              : 'Selectionnez un jour'}
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5 text-gray-400" />
+              {selectedDate
+                ? formatSelectedDate(selectedDate)
+                : 'Selectionnez un jour'}
+            </h3>
+            {selectedDate && (
+              <button
+                onClick={handleAddIntervention}
+                className="flex items-center gap-1 px-3 py-1.5 bg-primary-100 text-primary-700 rounded-lg text-sm font-medium hover:bg-primary-200 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Ajouter
+              </button>
+            )}
+          </div>
 
           {!selectedDate ? (
             <p className="text-gray-500 text-sm">Cliquez sur un jour pour voir les interventions prevues.</p>
@@ -332,9 +354,18 @@ export function AdminCalendar() {
       {/* Vue liste mobile quand un jour est selectionne */}
       {selectedDate && selectedInterventions.length > 0 && (
         <div className="mt-4 lg:hidden card">
-          <h3 className="font-semibold mb-3">
-            {formatSelectedDate(selectedDate)}
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">
+              {formatSelectedDate(selectedDate)}
+            </h3>
+            <button
+              onClick={handleAddIntervention}
+              className="flex items-center gap-1 px-3 py-1.5 bg-primary-100 text-primary-700 rounded-lg text-sm font-medium hover:bg-primary-200"
+            >
+              <Plus className="w-4 h-4" />
+              Ajouter
+            </button>
+          </div>
           <div className="space-y-2">
             {selectedInterventions.map((intervention) => (
               <div

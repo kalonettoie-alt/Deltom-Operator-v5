@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Calendar,
   Briefcase,
+  BarChart3,
 } from 'lucide-react';
 
 interface NavItem {
@@ -32,6 +33,7 @@ const prestataireNavItems: NavItem[] = [
   { to: '/prestataire', label: 'Accueil', icon: <Home className="w-5 h-5" /> },
   { to: '/prestataire/missions', label: 'Missions', icon: <Briefcase className="w-5 h-5" /> },
   { to: '/prestataire/planning', label: 'Planning', icon: <Calendar className="w-5 h-5" /> },
+  { to: '/prestataire/historique', label: 'Historique', icon: <BarChart3 className="w-5 h-5" /> },
 ];
 
 const navItemsByRole: Record<UserRole, NavItem[]> = {
