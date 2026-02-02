@@ -46,8 +46,8 @@ export function useFilters(pageKey: string) {
     localStorage.removeItem(`filters_${pageKey}`);
   }, [pageKey]);
 
-  const hasActiveFilters = filters.search || filters.status || filters.period !== 'all' ||
-    filters.logement || filters.client || filters.prestataire;
+  const hasActiveFilters = !!(filters.search || filters.status || filters.period !== 'all' ||
+    filters.logement || filters.client || filters.prestataire);
 
   return {
     filters,

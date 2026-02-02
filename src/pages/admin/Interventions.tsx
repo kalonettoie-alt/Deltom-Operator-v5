@@ -381,6 +381,7 @@ export function AdminInterventions() {
               setEditingIntervention(null);
             }}
             isSubmitting={isSubmitting}
+            prefilledLogement={!editingIntervention ? (logementFilter || undefined) : undefined}
           />
         )}
       </Modal>
