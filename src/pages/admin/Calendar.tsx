@@ -34,7 +34,7 @@ export function AdminCalendar() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Filtres persistés via localStorage (partagés avec Interventions)
-  const { filters, updateFilter, resetFilters: resetAllFilters } = useFilters('admin_interventions');
+  const { filters, updateFilter } = useFilters('admin_interventions');
   const logementFilter = filters.logement;
   const clientFilter = filters.client;
   const prestataireFilter = filters.prestataire;
