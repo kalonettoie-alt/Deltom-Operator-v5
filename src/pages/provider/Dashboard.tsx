@@ -38,16 +38,15 @@ export function ProviderDashboard() {
       return date >= startOfWeek && date <= endOfWeek;
     });
 
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    const completedThisMonth = interventions.filter((i) => {
-      const date = new Date(i.date);
-      return date >= startOfMonth && i.status === 'terminee';
-    });
+    // Mois en cours (string comparison pour éviter les problèmes de timezone)
+    const now = new Date();
+    const startOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const completedThisMonth = interventions.filter((i) =>
+      i.date >= startOfMonthStr && i.status === 'terminee'
+    );
 
-    // Revenus générés (somme des prix prestataire HT des missions terminées)
-    const revenusGeneres = interventions
-      .filter((i) => i.status === 'terminee')
+    // Revenus du mois (somme des prix prestataire HT des missions terminées ce mois)
+    const revenusGeneres = completedThisMonth
       .reduce((sum, i) => sum + (i.prix_prestataire_ht || 0), 0);
 
     return {
@@ -57,6 +56,8 @@ export function ProviderDashboard() {
       revenus: revenusGeneres,
     };
   }, [interventions, today]);
+
+  const currentMonthName = new Date().toLocaleDateString('fr-FR', { month: 'long' });
 
   // Missions du jour
   const todayMissions = interventions.filter((i) => i.date === today && i.status !== 'assignee');
@@ -139,7 +140,7 @@ export function ProviderDashboard() {
               <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-xs md:text-sm text-gray-500">Terminées</p>
+              <p className="text-xs md:text-sm text-gray-500 capitalize">Terminées ({currentMonthName})</p>
               <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.completedMonth}</p>
             </div>
           </div>
@@ -151,7 +152,7 @@ export function ProviderDashboard() {
               <Euro className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-xs md:text-sm text-gray-500">Revenus</p>
+              <p className="text-xs md:text-sm text-gray-500 capitalize">Revenus ({currentMonthName})</p>
               <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.revenus.toFixed(0)}€</p>
             </div>
           </div>

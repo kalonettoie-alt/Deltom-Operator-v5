@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../hooks/useAuth';
-import { ChevronLeft, ChevronRight, CheckCircle, Calendar, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CheckCircle, Calendar, BarChart3 } from 'lucide-react';
 import { Loader } from '../../components/ui/Loader';
 import { EmptyState } from '../../components/ui/EmptyState';
 
@@ -16,9 +16,14 @@ export function ProviderHistorique() {
   const [historique, setHistorique] = useState<MonthStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [monthDetails, setMonthDetails] = useState<any[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     if (profile?.id) {
+      setSelectedMonth(null);
+      setMonthDetails([]);
       fetchHistorique();
     }
   }, [profile?.id, selectedYear]);
@@ -65,6 +70,34 @@ export function ProviderHistorique() {
 
     setHistorique(result);
     setLoading(false);
+  };
+
+  const fetchMonthDetails = async (monthKey: string) => {
+    if (selectedMonth === monthKey) {
+      setSelectedMonth(null);
+      setMonthDetails([]);
+      return;
+    }
+    if (!profile?.id) return;
+    setSelectedMonth(monthKey);
+    setLoadingDetails(true);
+
+    const [year, month] = monthKey.split('-').map(Number);
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    const { data } = await supabase
+      .from('interventions')
+      .select('id, date, type, prix_prestataire_ht, logement:logements(name, address, city)')
+      .eq('prestataire_id', profile.id)
+      .eq('status', 'terminee')
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false });
+
+    setMonthDetails(data || []);
+    setLoadingDetails(false);
   };
 
   const formatMonthName = (monthStr: string) => {
@@ -127,19 +160,73 @@ export function ProviderHistorique() {
       ) : (
         <div className="space-y-3">
           {historique.map((month) => (
-            <div key={month.month} className="card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold capitalize">{formatMonthName(month.month)}</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                    <CheckCircle className="w-3 h-3" />
-                    {month.interventions} intervention(s)
-                  </p>
+            <div key={month.month}>
+              <div
+                className="card cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => fetchMonthDetails(month.month)}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold capitalize">{formatMonthName(month.month)}</p>
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                      <CheckCircle className="w-3 h-3" />
+                      {month.interventions} intervention(s)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className={`text-xl font-bold ${month.revenus > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                      {month.revenus.toFixed(2)}€
+                    </p>
+                    <ChevronDown
+                      className={`w-5 h-5 text-gray-400 transition-transform ${
+                        selectedMonth === month.month ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </div>
                 </div>
-                <p className={`text-xl font-bold ${month.revenus > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                  {month.revenus.toFixed(2)}€
-                </p>
               </div>
+
+              {/* Detail des interventions du mois */}
+              {selectedMonth === month.month && (
+                <div className="mt-2 ml-2 border-l-2 border-blue-200 pl-4 space-y-2 pb-2">
+                  {loadingDetails ? (
+                    <div className="flex justify-center py-4">
+                      <Loader size="sm" />
+                    </div>
+                  ) : monthDetails.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-2">Aucune intervention ce mois.</p>
+                  ) : (
+                    monthDetails.map((intervention: any) => (
+                      <div
+                        key={intervention.id}
+                        className="bg-white border border-gray-200 rounded-lg p-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm text-gray-900">
+                              {intervention.logement?.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {intervention.logement?.address}, {intervention.logement?.city}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(intervention.date + 'T00:00:00').toLocaleDateString('fr-FR', {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                              })}
+                              {intervention.type && ` — ${intervention.type}`}
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold text-green-600">
+                            {(intervention.prix_prestataire_ht || 0).toFixed(2)}€
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
