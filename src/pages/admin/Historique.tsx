@@ -8,6 +8,18 @@ import {
 } from 'lucide-react';
 import { Loader } from '../../components/ui/Loader';
 
+interface BlanchisserieIntervDetail {
+  logement: string;
+  prix: number;
+  date: string;
+}
+
+interface ForfaitDetail {
+  id: string;
+  nom: string;
+  prix: number;
+}
+
 interface MonthlyStats {
   month: string;
   interventionsCount: number;
@@ -16,7 +28,10 @@ interface MonthlyStats {
   totalPayePrestataire: number;
   margeMenages: number;
   blanchisserieInterventions: number;
+  blanchisserieInterventionsDetail: BlanchisserieIntervDetail[];
   blanchisserieForfaits: number;
+  forfaitsDetail: ForfaitDetail[];
+  totalBlanchisserie: number;
   gainTotal: number;
   prestataireStats: {
     id: string;
@@ -101,21 +116,33 @@ export function AdminHistorique() {
 
     const { data: interventions } = await query;
 
-    // Forfaits blanchisserie
-    const { data: logementsAvecForfait } = await supabase
+    // Forfaits blanchisserie - avec filtres et detail par logement
+    let forfaitQuery = supabase
       .from('logements')
-      .select('prix_blanchisserie')
+      .select('id, name, prix_blanchisserie, client_id, city')
       .eq('type_blanchisserie', 'forfait');
 
-    const blanchisserieForfaits = (logementsAvecForfait || []).reduce(
-      (sum: number, l: { prix_blanchisserie: number | null }) => sum + (l.prix_blanchisserie || 0), 0
-    );
+    // Appliquer les filtres aux forfaits
+    if (filterClient) forfaitQuery = forfaitQuery.eq('client_id', filterClient);
+    if (filterLogement) forfaitQuery = forfaitQuery.eq('id', filterLogement);
+
+    const { data: logementsAvecForfait } = await forfaitQuery;
+
+    // Construire le detail des forfaits par logement
+    const forfaitsDetail: ForfaitDetail[] = (logementsAvecForfait || []).map((l) => ({
+      id: l.id,
+      nom: `${l.name}${l.city ? ` - ${l.city}` : ''}`,
+      prix: l.prix_blanchisserie || 0,
+    }));
+
+    const blanchisserieForfaits = forfaitsDetail.reduce((sum, l) => sum + l.prix, 0);
 
     const terminees = (interventions || []).filter((i: { status: string }) => i.status === 'terminee');
 
     let totalFactureClient = 0;
     let totalPayePrestataire = 0;
     let blanchisserieInterventions = 0;
+    const blanchisserieInterventionsDetail: BlanchisserieIntervDetail[] = [];
     const prestataireMap = new Map<string, { id: string; name: string; interventions: number; revenus: number }>();
     const clientMap = new Map<string, { id: string; name: string; interventions: number; facture: number }>();
     const logementMap = new Map<string, { id: string; name: string; interventions: number; revenus: number }>();
@@ -125,10 +152,18 @@ export function AdminHistorique() {
       const prixPrestataire = Number(intervention.prix_prestataire_ht) || 0;
       const blanchIncluse = intervention.blanchisserie_incluse as boolean;
       const blanchPrix = Number(intervention.prix_blanchisserie) || 0;
+      const logement = intervention.logement as { name?: string } | null;
 
       totalFactureClient += prixClient;
       totalPayePrestataire += prixPrestataire;
-      if (blanchIncluse) blanchisserieInterventions += blanchPrix;
+      if (blanchIncluse && blanchPrix > 0) {
+        blanchisserieInterventions += blanchPrix;
+        blanchisserieInterventionsDetail.push({
+          logement: logement?.name || 'Inconnu',
+          prix: blanchPrix,
+          date: intervention.date as string,
+        });
+      }
 
       // Stats par prestataire
       const prestId = intervention.prestataire_id as string | null;
@@ -179,7 +214,10 @@ export function AdminHistorique() {
       totalPayePrestataire,
       margeMenages,
       blanchisserieInterventions,
+      blanchisserieInterventionsDetail,
       blanchisserieForfaits,
+      forfaitsDetail,
+      totalBlanchisserie,
       gainTotal,
       prestataireStats: Array.from(prestataireMap.values()).sort((a, b) => b.revenus - a.revenus),
       clientStats: Array.from(clientMap.values()).sort((a, b) => b.facture - a.facture),
@@ -355,36 +393,106 @@ export function AdminHistorique() {
             </div>
           </div>
 
-          {/* Detail gain */}
-          <div className="card mb-4">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-sm">
-              <Euro className="w-4 h-4 text-gray-400" />
-              Detail des revenus
+          {/* SECTION 1 : MENAGES */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-4">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <span className="text-lg">🧹</span> Menages
+            </h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Facture aux clients</span>
+                <span className="font-medium text-green-600">+{stats.totalFactureClient.toFixed(2)}€</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Paye aux prestataires</span>
+                <span className="font-medium text-red-600">-{stats.totalPayePrestataire.toFixed(2)}€</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="font-semibold">Marge menages</span>
+                <span className={`font-bold text-lg ${stats.margeMenages >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                  {stats.margeMenages.toFixed(2)}€
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 2 : BLANCHISSERIE */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-4">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <span className="text-lg">🧺</span> Blanchisserie
+            </h3>
+
+            {/* Blanchisserie par intervention */}
+            {stats.blanchisserieInterventions > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-500 mb-2">Par intervention :</p>
+                <div className="space-y-1 pl-4">
+                  {stats.blanchisserieInterventionsDetail.map((item, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span className="text-gray-600">{item.logement}</span>
+                      <span className="text-purple-600">+{item.prix.toFixed(2)}€</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between mt-2 pt-2 border-t border-dashed text-sm">
+                  <span className="text-gray-500">Sous-total interventions</span>
+                  <span className="font-medium text-purple-600">+{stats.blanchisserieInterventions.toFixed(2)}€</span>
+                </div>
+              </div>
+            )}
+
+            {/* Forfaits mensuels - DETAIL PAR LOGEMENT */}
+            {stats.forfaitsDetail.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-500 mb-2">Forfaits mensuels :</p>
+                <div className="space-y-1 pl-4">
+                  {stats.forfaitsDetail.map((logement) => (
+                    <div key={logement.id} className="flex justify-between text-sm">
+                      <span className="text-gray-600">{logement.nom}</span>
+                      <span className="text-purple-600">+{logement.prix.toFixed(2)}€</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between mt-2 pt-2 border-t border-dashed text-sm">
+                  <span className="text-gray-500">Sous-total forfaits</span>
+                  <span className="font-medium text-purple-600">+{stats.blanchisserieForfaits.toFixed(2)}€</span>
+                </div>
+              </div>
+            )}
+
+            {/* Si aucune blanchisserie */}
+            {stats.blanchisserieInterventions === 0 && stats.blanchisserieForfaits === 0 && (
+              <p className="text-gray-400 text-sm">Aucune blanchisserie ce mois</p>
+            )}
+
+            {/* Total blanchisserie */}
+            {(stats.blanchisserieInterventions > 0 || stats.blanchisserieForfaits > 0) && (
+              <div className="flex justify-between items-center pt-3 border-t border-gray-200 mt-3">
+                <span className="font-semibold">Total blanchisserie</span>
+                <span className="font-bold text-lg text-purple-600">
+                  +{stats.totalBlanchisserie.toFixed(2)}€
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 3 : GAIN TOTAL */}
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-4 text-white mb-4">
+            <h3 className="font-semibold mb-3 text-emerald-100 flex items-center gap-2">
+              <span className="text-lg">💰</span> Recapitulatif
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Facture clients (menages)</span>
-                <span className="text-green-600 font-medium">+{stats.totalFactureClient.toFixed(2)}€</span>
+                <span className="text-emerald-100">Marge menages</span>
+                <span className="font-medium">{stats.margeMenages.toFixed(2)}€</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Paye prestataires</span>
-                <span className="text-red-600 font-medium">-{stats.totalPayePrestataire.toFixed(2)}€</span>
+                <span className="text-emerald-100">Blanchisserie</span>
+                <span className="font-medium">+{stats.totalBlanchisserie.toFixed(2)}€</span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-dashed">
-                <span className="font-medium">Marge menages</span>
-                <span className="font-semibold">{stats.margeMenages.toFixed(2)}€</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Blanchisserie (interventions)</span>
-                <span className="text-purple-600 font-medium">+{stats.blanchisserieInterventions.toFixed(2)}€</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Blanchisserie (forfaits)</span>
-                <span className="text-purple-600 font-medium">+{stats.blanchisserieForfaits.toFixed(2)}€</span>
-              </div>
-              <div className="flex justify-between pt-2 border-t text-base">
-                <span className="font-bold">GAIN TOTAL</span>
-                <span className="font-bold text-green-600">{stats.gainTotal.toFixed(2)}€</span>
+              <div className="flex justify-between pt-2 border-t border-emerald-400">
+                <span className="font-bold text-lg">TON GAIN NET</span>
+                <span className="font-bold text-2xl">{stats.gainTotal.toFixed(2)}€</span>
               </div>
             </div>
           </div>
