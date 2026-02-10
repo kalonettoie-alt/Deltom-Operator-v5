@@ -4,7 +4,7 @@ import { useLogements } from '../../hooks/useLogements';
 import { useClients, usePrestataires } from '../../hooks/useProfiles';
 import {
   TrendingUp, TrendingDown, Users, Building2,
-  Euro, Filter, ChevronLeft, ChevronRight, BarChart3,
+  Filter, ChevronLeft, ChevronRight, BarChart3,
 } from 'lucide-react';
 import { Loader } from '../../components/ui/Loader';
 
@@ -129,7 +129,14 @@ export function AdminHistorique() {
     const { data: logementsAvecForfait } = await forfaitQuery;
 
     // Construire le detail des forfaits par logement
-    const forfaitsDetail: ForfaitDetail[] = (logementsAvecForfait || []).map((l) => ({
+    interface LogementForfait {
+      id: string;
+      name: string;
+      prix_blanchisserie: number | null;
+      client_id: string | null;
+      city: string | null;
+    }
+    const forfaitsDetail: ForfaitDetail[] = ((logementsAvecForfait || []) as LogementForfait[]).map((l) => ({
       id: l.id,
       nom: `${l.name}${l.city ? ` - ${l.city}` : ''}`,
       prix: l.prix_blanchisserie || 0,
