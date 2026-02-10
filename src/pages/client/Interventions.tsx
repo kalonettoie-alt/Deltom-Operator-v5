@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { ClipboardList, Search, Filter, FileText, Clock, Camera, Image } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { ClipboardList, Search, Filter, FileText, Clock, Camera, Image, Calendar } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useInterventions } from '../../hooks/useInterventions';
 import { Loader } from '../../components/ui/Loader';
@@ -49,8 +50,22 @@ export function ClientInterventions() {
     setIsLightboxOpen(true);
   };
 
-  // Filtrer les interventions avec les statuts simplifiés
+  // Mois en cours
+  const currentMonthInfo = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const endOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
+    const monthName = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    return { startOfMonth, endOfMonthStr, monthName };
+  }, []);
+
+  // Filtrer les interventions du mois en cours avec les statuts simplifiés
   const filteredInterventions = interventions.filter((i) => {
+    // Filtre mois en cours
+    const isCurrentMonth = i.date >= currentMonthInfo.startOfMonth && i.date <= currentMonthInfo.endOfMonthStr;
+    if (!isCurrentMonth) return false;
+
     const matchesSearch = i.logement?.name.toLowerCase().includes(searchTerm.toLowerCase());
     const clientStatus = getClientStatus(i.status);
     const matchesStatus = !statusFilter || clientStatus === statusFilter;
@@ -83,7 +98,18 @@ export function ClientInterventions() {
     <div className="pb-20 md:pb-0">
       <div className="mb-6">
         <h1 className="text-xl md:text-2xl font-bold text-gray-900">Mes interventions</h1>
-        <p className="text-sm md:text-base text-gray-600 mt-1">{interventions.length} intervention(s)</p>
+        <p className="text-sm md:text-base text-gray-600 mt-1 flex items-center gap-2">
+          <Calendar className="w-4 h-4" />
+          <span className="capitalize">{currentMonthInfo.monthName}</span>
+          <span className="text-gray-400">•</span>
+          <span>{filteredInterventions.length} intervention(s)</span>
+        </p>
+        <Link
+          to="/client/historique"
+          className="text-xs text-primary-600 hover:text-primary-700 mt-1 inline-block"
+        >
+          Voir l'historique des mois precedents
+        </Link>
       </div>
 
       {/* Filtres */}
@@ -120,12 +146,29 @@ export function ClientInterventions() {
       )}
 
       {/* Liste des interventions */}
-      {interventions.length === 0 ? (
-        <EmptyState
-          icon={<ClipboardList className="w-6 h-6 text-gray-400" />}
-          title="Aucune intervention"
-          description="Vous n'avez pas encore d'intervention programmée."
-        />
+      {filteredInterventions.length === 0 && !searchTerm && !statusFilter ? (
+        <div className="text-center">
+          <EmptyState
+            icon={<ClipboardList className="w-6 h-6 text-gray-400" />}
+            title="Aucune intervention ce mois"
+            description={`Vous n'avez pas d'intervention programmée pour ${currentMonthInfo.monthName}.`}
+          />
+          <div className="flex flex-col sm:flex-row gap-2 justify-center mt-4">
+            <Link
+              to="/client/calendrier"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm text-primary-600 border border-primary-600 rounded-lg hover:bg-primary-50"
+            >
+              <Calendar className="w-4 h-4" />
+              Voir le calendrier
+            </Link>
+            <Link
+              to="/client/historique"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Voir l'historique
+            </Link>
+          </div>
+        </div>
       ) : filteredInterventions.length === 0 ? (
         <EmptyState
           icon={<Search className="w-6 h-6 text-gray-400" />}

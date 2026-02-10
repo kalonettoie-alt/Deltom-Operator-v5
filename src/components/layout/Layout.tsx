@@ -32,6 +32,8 @@ const clientNavItems = [
   { to: '/client', icon: Home, label: 'Dashboard' },
   { to: '/client/logements', icon: Building2, label: 'Mes logements' },
   { to: '/client/interventions', icon: ClipboardList, label: 'Interventions' },
+  { to: '/client/calendrier', icon: Calendar, label: 'Calendrier' },
+  { to: '/client/historique', icon: BarChart3, label: 'Historique' },
 ];
 
 const prestataireNavItems = [

@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useLogements } from '../../hooks/useLogements';
 import { useInterventions } from '../../hooks/useInterventions';
-import { Building2, ClipboardList, CheckCircle, Euro } from 'lucide-react';
+import { Building2, ClipboardList, CheckCircle, Euro, Calendar } from 'lucide-react';
 import { Loader } from '../../components/ui/Loader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { getClientStatus, ClientStatusLabels } from '../../types';
@@ -43,15 +43,13 @@ export function ClientDashboard() {
       (i) => i.status === 'en_cours' || i.status === 'acceptee'
     );
 
-    // Interventions terminées ce mois
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    // Interventions terminées ce mois (string comparison pour eviter les problemes de timezone)
+    const now = new Date();
+    const startOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
-    const completedThisMonth = interventions.filter((i) => {
-      const date = new Date(i.date);
-      return date >= startOfMonth && i.status === 'terminee';
-    });
+    const completedThisMonth = interventions.filter(
+      (i) => i.date >= startOfMonthStr && i.status === 'terminee'
+    );
 
     // Facture du mois (somme des prix client TTC des interventions terminées du mois)
     const factureMonth = completedThisMonth.reduce(
@@ -59,30 +57,26 @@ export function ClientDashboard() {
       0
     );
 
+    // Nom du mois en cours
+    const currentMonthName = now.toLocaleDateString('fr-FR', { month: 'long' });
+
     return {
       logements: logements.length,
       enCours: enCours.length,
       completedMonth: completedThisMonth.length,
       factureMonth,
+      currentMonthName,
     };
   }, [logements, interventions]);
 
-  // Prochaines interventions (exclure a_attribuer et refusee du point de vue client)
-  const upcomingInterventions = interventions
-    .filter((i) => {
-      const clientStatus = getClientStatus(i.status);
-      return i.date >= today && clientStatus !== 'terminee';
-    })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 5);
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
+  // Missions du JOUR uniquement (pas toutes les prochaines)
+  const todayMissions = interventions
+    .filter((i) => i.date === today)
+    .sort((a, b) => {
+      // Trier par statut: en_cours d'abord, puis acceptee, puis autres
+      const order: Record<string, number> = { en_cours: 0, acceptee: 1, assignee: 2, a_attribuer: 3, terminee: 4 };
+      return (order[a.status] ?? 5) - (order[b.status] ?? 5);
     });
-  };
 
   if (isLoadingLogements || isLoadingInterventions) {
     return (
@@ -139,7 +133,7 @@ export function ClientDashboard() {
               <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-xs md:text-sm text-gray-500">Terminées</p>
+              <p className="text-xs md:text-sm text-gray-500 capitalize">Terminées ({stats.currentMonthName})</p>
               <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.completedMonth}</p>
             </div>
           </div>
@@ -151,28 +145,38 @@ export function ClientDashboard() {
               <Euro className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-xs md:text-sm text-purple-600">Facture</p>
+              <p className="text-xs md:text-sm text-purple-600 capitalize">Facture ({stats.currentMonthName})</p>
               <p className="text-lg md:text-2xl font-bold text-purple-900">{stats.factureMonth.toFixed(0)}€</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Prochaines interventions */}
+      {/* Missions du jour */}
       <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Prochaines interventions
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Calendar className="w-5 h-5" />
+          Missions du jour
         </h2>
 
-        {upcomingInterventions.length === 0 ? (
-          <EmptyState
-            icon={<ClipboardList className="w-6 h-6 text-gray-400" />}
-            title="Aucune intervention à venir"
-            description="Vous n'avez pas d'intervention programmée prochainement."
-          />
+        {todayMissions.length === 0 ? (
+          <div className="text-center py-6">
+            <EmptyState
+              icon={<ClipboardList className="w-6 h-6 text-gray-400" />}
+              title="Aucune intervention aujourd'hui"
+              description="Vous n'avez pas d'intervention programmée pour aujourd'hui."
+            />
+            <Link
+              to="/client/calendrier"
+              className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 mt-2"
+            >
+              <Calendar className="w-4 h-4" />
+              Voir le calendrier
+            </Link>
+          </div>
         ) : (
           <div className="space-y-3">
-            {upcomingInterventions.map((intervention) => {
+            {todayMissions.map((intervention) => {
               const clientStatus = getClientStatus(intervention.status);
               return (
                 <div
@@ -184,18 +188,24 @@ export function ClientDashboard() {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-gray-900">
-                          {formatDate(intervention.date)}
+                          {intervention.logement?.name}
                         </span>
                         <ClientStatusBadge status={clientStatus} />
                       </div>
                       <p className="text-sm text-gray-600">
-                        {intervention.logement?.name} - {intervention.logement?.city}
+                        {intervention.logement?.address}, {intervention.logement?.city}
                       </p>
                     </div>
                   </div>
                 </div>
               );
             })}
+            <Link
+              to="/client/calendrier"
+              className="block text-center text-sm text-primary-600 hover:text-primary-700 pt-2"
+            >
+              Voir le calendrier complet
+            </Link>
           </div>
         )}
       </div>

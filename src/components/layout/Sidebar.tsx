@@ -33,6 +33,8 @@ const clientNavItems: NavItem[] = [
   { to: '/client', label: 'Dashboard', icon: <Home className="w-5 h-5" /> },
   { to: '/client/logements', label: 'Mes logements', icon: <Building2 className="w-5 h-5" /> },
   { to: '/client/interventions', label: 'Interventions', icon: <ClipboardList className="w-5 h-5" /> },
+  { to: '/client/calendrier', label: 'Calendrier', icon: <Calendar className="w-5 h-5" /> },
+  { to: '/client/historique', label: 'Historique', icon: <BarChart3 className="w-5 h-5" /> },
 ];
 
 const prestataireNavItems: NavItem[] = [

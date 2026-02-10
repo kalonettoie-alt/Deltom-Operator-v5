@@ -18,6 +18,8 @@ import { AdminHistorique } from './pages/admin/Historique';
 import { ClientDashboard } from './pages/client/Dashboard';
 import { ClientLogements } from './pages/client/Logements';
 import { ClientInterventions } from './pages/client/Interventions';
+import { ClientCalendar } from './pages/client/Calendar';
+import { ClientHistorique } from './pages/client/Historique';
 
 // Pages Prestataire
 import { ProviderDashboard } from './pages/provider/Dashboard';
@@ -129,6 +131,8 @@ function App() {
         <Route index element={<ClientDashboard />} />
         <Route path="logements" element={<ClientLogements />} />
         <Route path="interventions" element={<ClientInterventions />} />
+        <Route path="calendrier" element={<ClientCalendar />} />
+        <Route path="historique" element={<ClientHistorique />} />
       </Route>
 
       {/* Routes Prestataire */}

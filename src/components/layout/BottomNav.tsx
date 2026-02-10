@@ -27,8 +27,9 @@ const adminNavItems: NavItem[] = [
 
 const clientNavItems: NavItem[] = [
   { to: '/client', label: 'Accueil', icon: <Home className="w-5 h-5" /> },
-  { to: '/client/logements', label: 'Logements', icon: <Building2 className="w-5 h-5" /> },
   { to: '/client/interventions', label: 'Missions', icon: <ClipboardList className="w-5 h-5" /> },
+  { to: '/client/calendrier', label: 'Calendrier', icon: <Calendar className="w-5 h-5" /> },
+  { to: '/client/historique', label: 'Historique', icon: <BarChart3 className="w-5 h-5" /> },
 ];
 
 const prestataireNavItems: NavItem[] = [
