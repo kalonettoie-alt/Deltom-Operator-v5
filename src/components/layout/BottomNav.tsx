@@ -3,7 +3,6 @@ import { useAuth } from '../../hooks/useAuth';
 import type { UserRole } from '../../types';
 import {
   Home,
-  Building2,
   ClipboardList,
   Calendar,
   Briefcase,
