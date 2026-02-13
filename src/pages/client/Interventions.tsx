@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Search, Filter, FileText, Clock, Camera, Image, Calendar } from 'lucide-react';
+import { ClipboardList, Search, Filter, FileText, Camera, Image, Calendar } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useInterventions } from '../../hooks/useInterventions';
 import { Loader } from '../../components/ui/Loader';
@@ -258,30 +258,6 @@ export function ClientInterventions() {
               <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
                 <p className="text-sm text-purple-600">Montant facturé</p>
                 <p className="text-xl font-bold text-purple-900">{selectedIntervention.prix_client_ttc.toFixed(2)}€ TTC</p>
-              </div>
-            )}
-
-            {/* Temps de nettoyage */}
-            {selectedIntervention.started_at && selectedIntervention.completed_at && (
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <Clock className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-500">Temps de nettoyage</p>
-                  <p className="font-medium text-gray-900">
-                    {(() => {
-                      const start = new Date(selectedIntervention.started_at!);
-                      const end = new Date(selectedIntervention.completed_at!);
-                      const diffMs = end.getTime() - start.getTime();
-                      const diffMins = Math.floor(diffMs / (1000 * 60));
-                      const hours = Math.floor(diffMins / 60);
-                      const mins = diffMins % 60;
-                      if (hours > 0) {
-                        return `${hours}h ${mins}min`;
-                      }
-                      return `${mins}min`;
-                    })()}
-                  </p>
-                </div>
               </div>
             )}
 

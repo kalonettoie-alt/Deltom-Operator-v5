@@ -8,7 +8,15 @@ import { EmptyState } from '../../components/ui/EmptyState';
 interface MonthStats {
   month: string;
   interventions: number;
+  factureMenage: number;
+  factureBlanchisserie: number;
   facture: number;
+}
+
+interface ForfaitLogement {
+  name: string;
+  city: string;
+  prix_blanchisserie: number;
 }
 
 export function ClientHistorique() {
@@ -18,12 +26,14 @@ export function ClientHistorique() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [monthDetails, setMonthDetails] = useState<any[]>([]);
+  const [forfaitsLogements, setForfaitsLogements] = useState<ForfaitLogement[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     if (profile?.id) {
       setSelectedMonth(null);
       setMonthDetails([]);
+      setForfaitsLogements([]);
       fetchHistorique();
     }
   }, [profile?.id, selectedYear]);
@@ -35,34 +45,69 @@ export function ClientHistorique() {
     const startOfYear = `${selectedYear}-01-01`;
     const endOfYear = `${selectedYear}-12-31`;
 
+    // Fetch interventions terminées
     const { data: interventions } = await supabase
       .from('interventions')
-      .select('date, prix_client_ttc')
+      .select('date, prix_client_ttc, blanchisserie_incluse, prix_blanchisserie')
       .eq('client_id', profile.id)
       .eq('status', 'terminee')
       .gte('date', startOfYear)
       .lte('date', endOfYear);
+
+    // Fetch forfaits blanchisserie des logements du client
+    const { data: logementsAvecForfait } = await supabase
+      .from('logements')
+      .select('name, city, prix_blanchisserie')
+      .eq('client_id', profile.id)
+      .eq('type_blanchisserie', 'forfait');
+
+    const forfaitMensuel = (logementsAvecForfait || []).reduce(
+      (sum, l: { prix_blanchisserie: number | null }) => sum + (l.prix_blanchisserie || 0),
+      0
+    );
 
     // Grouper par mois
     const monthlyStats = new Map<string, MonthStats>();
 
     for (let m = 1; m <= 12; m++) {
       const monthKey = `${selectedYear}-${String(m).padStart(2, '0')}`;
-      monthlyStats.set(monthKey, { month: monthKey, interventions: 0, facture: 0 });
+      monthlyStats.set(monthKey, {
+        month: monthKey,
+        interventions: 0,
+        factureMenage: 0,
+        factureBlanchisserie: 0,
+        facture: 0,
+      });
     }
 
-    (interventions || []).forEach((intervention: { date: string; prix_client_ttc: number }) => {
+    (interventions || []).forEach((intervention: {
+      date: string;
+      prix_client_ttc: number;
+      blanchisserie_incluse: boolean;
+      prix_blanchisserie: number;
+    }) => {
       const monthKey = intervention.date.substring(0, 7);
       const existing = monthlyStats.get(monthKey);
       if (existing) {
         existing.interventions++;
-        existing.facture += intervention.prix_client_ttc || 0;
+        existing.factureMenage += intervention.prix_client_ttc || 0;
+        if (intervention.blanchisserie_incluse) {
+          existing.factureBlanchisserie += intervention.prix_blanchisserie || 0;
+        }
       }
     });
 
-    // Filtrer les mois passes uniquement
+    // Ajouter les forfaits mensuels à chaque mois passé
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    monthlyStats.forEach((stats, monthKey) => {
+      // Ajouter forfait aux mois passés (pas le mois en cours)
+      if (monthKey < currentMonth || selectedYear < now.getFullYear()) {
+        stats.factureBlanchisserie += forfaitMensuel;
+      }
+      stats.facture = stats.factureMenage + stats.factureBlanchisserie;
+    });
 
     const result = Array.from(monthlyStats.values())
       .filter((m) => m.month < currentMonth || selectedYear < now.getFullYear())
@@ -76,6 +121,7 @@ export function ClientHistorique() {
     if (selectedMonth === monthKey) {
       setSelectedMonth(null);
       setMonthDetails([]);
+      setForfaitsLogements([]);
       return;
     }
     if (!profile?.id) return;
@@ -87,16 +133,33 @@ export function ClientHistorique() {
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
+    // Fetch interventions du mois
     const { data } = await supabase
       .from('interventions')
-      .select('id, date, type, prix_client_ttc, logement:logements(name, address, city)')
+      .select('id, date, type, prix_client_ttc, blanchisserie_incluse, prix_blanchisserie, logement:logements(name, address, city)')
       .eq('client_id', profile.id)
       .eq('status', 'terminee')
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: false });
 
+    // Fetch forfaits blanchisserie
+    const { data: forfaits } = await supabase
+      .from('logements')
+      .select('name, city, prix_blanchisserie')
+      .eq('client_id', profile.id)
+      .eq('type_blanchisserie', 'forfait');
+
     setMonthDetails(data || []);
+    setForfaitsLogements(
+      (forfaits || [])
+        .filter((f: { prix_blanchisserie: number | null }) => f.prix_blanchisserie && f.prix_blanchisserie > 0)
+        .map((f: { name: string; city: string; prix_blanchisserie: number | null }) => ({
+          name: f.name,
+          city: f.city,
+          prix_blanchisserie: f.prix_blanchisserie || 0,
+        }))
+    );
     setLoadingDetails(false);
   };
 
@@ -172,6 +235,11 @@ export function ClientHistorique() {
                       <CheckCircle className="w-3 h-3" />
                       {month.interventions} intervention(s)
                     </p>
+                    {month.factureBlanchisserie > 0 && (
+                      <p className="text-xs text-indigo-500 mt-0.5">
+                        🧺 dont {month.factureBlanchisserie.toFixed(2)}€ blanchisserie
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <p className={`text-xl font-bold ${month.facture > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
@@ -193,38 +261,81 @@ export function ClientHistorique() {
                     <div className="flex justify-center py-4">
                       <Loader size="sm" />
                     </div>
-                  ) : monthDetails.length === 0 ? (
-                    <p className="text-sm text-gray-500 py-2">Aucune intervention ce mois.</p>
                   ) : (
-                    monthDetails.map((intervention: any) => (
-                      <div
-                        key={intervention.id}
-                        className="bg-white border border-gray-200 rounded-lg p-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-sm text-gray-900">
-                              {intervention.logement?.name}
-                            </p>
-                            <p className="text-xs text-gray-500 flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {intervention.logement?.city}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(intervention.date + 'T00:00:00').toLocaleDateString('fr-FR', {
-                                weekday: 'short',
-                                day: 'numeric',
-                                month: 'short',
-                              })}
-                              {intervention.type && ` — ${intervention.type}`}
-                            </p>
-                          </div>
-                          <p className="text-sm font-semibold text-purple-600">
-                            {(intervention.prix_client_ttc || 0).toFixed(2)}€
+                    <>
+                      {/* Interventions */}
+                      {monthDetails.length === 0 ? (
+                        <p className="text-sm text-gray-500 py-2">Aucune intervention ce mois.</p>
+                      ) : (
+                        <>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider pt-1">
+                            Interventions
                           </p>
-                        </div>
-                      </div>
-                    ))
+                          {monthDetails.map((intervention: any) => (
+                            <div
+                              key={intervention.id}
+                              className="bg-white border border-gray-200 rounded-lg p-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-sm text-gray-900">
+                                    {intervention.logement?.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    {intervention.logement?.city}
+                                  </p>
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    {new Date(intervention.date + 'T00:00:00').toLocaleDateString('fr-FR', {
+                                      weekday: 'short',
+                                      day: 'numeric',
+                                      month: 'short',
+                                    })}
+                                    {intervention.type && ` — ${intervention.type}`}
+                                  </p>
+                                  {intervention.blanchisserie_incluse && (
+                                    <p className="text-xs text-indigo-500 mt-0.5">
+                                      🧺 Blanchisserie: {(intervention.prix_blanchisserie || 0).toFixed(2)}€
+                                    </p>
+                                  )}
+                                </div>
+                                <p className="text-sm font-semibold text-purple-600">
+                                  {(intervention.prix_client_ttc || 0).toFixed(2)}€
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Forfaits blanchisserie */}
+                      {forfaitsLogements.length > 0 && (
+                        <>
+                          <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wider pt-2">
+                            🧺 Forfaits blanchisserie mensuels
+                          </p>
+                          {forfaitsLogements.map((forfait, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-indigo-50 border border-indigo-200 rounded-lg p-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-sm text-gray-900">{forfait.name}</p>
+                                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    {forfait.city}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-semibold text-indigo-600">
+                                  {forfait.prix_blanchisserie.toFixed(2)}€
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </>
                   )}
                 </div>
               )}
