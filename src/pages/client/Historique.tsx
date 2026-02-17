@@ -45,7 +45,6 @@ export function ClientHistorique() {
     const startOfYear = `${selectedYear}-01-01`;
     const endOfYear = `${selectedYear}-12-31`;
 
-    // Fetch interventions terminées
     const { data: interventions } = await supabase
       .from('interventions')
       .select('date, prix_client_ttc, blanchisserie_incluse, prix_blanchisserie')
@@ -54,7 +53,6 @@ export function ClientHistorique() {
       .gte('date', startOfYear)
       .lte('date', endOfYear);
 
-    // Fetch forfaits blanchisserie des logements du client
     const { data: logementsAvecForfait } = await supabase
       .from('logements')
       .select('name, city, prix_blanchisserie')
@@ -66,7 +64,6 @@ export function ClientHistorique() {
       0
     );
 
-    // Grouper par mois
     const monthlyStats = new Map<string, MonthStats>();
 
     for (let m = 1; m <= 12; m++) {
@@ -97,12 +94,10 @@ export function ClientHistorique() {
       }
     });
 
-    // Ajouter les forfaits mensuels à chaque mois passé
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     monthlyStats.forEach((stats, monthKey) => {
-      // Ajouter forfait aux mois passés (pas le mois en cours)
       if (monthKey < currentMonth || selectedYear < now.getFullYear()) {
         stats.factureBlanchisserie += forfaitMensuel;
       }
@@ -133,7 +128,6 @@ export function ClientHistorique() {
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-    // Fetch interventions du mois
     const { data } = await supabase
       .from('interventions')
       .select('id, date, type, prix_client_ttc, blanchisserie_incluse, prix_blanchisserie, logement:logements(name, address, city)')
@@ -143,7 +137,6 @@ export function ClientHistorique() {
       .lte('date', endDate)
       .order('date', { ascending: false });
 
-    // Fetch forfaits blanchisserie
     const { data: forfaits } = await supabase
       .from('logements')
       .select('name, city, prix_blanchisserie')
@@ -175,27 +168,27 @@ export function ClientHistorique() {
     <div className="pb-20 md:pb-0">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <BarChart3 className="w-6 h-6" />
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <BarChart3 className="w-6 h-6 text-purple-500" />
           Historique
         </h1>
-        <p className="text-sm text-gray-600 mt-1">Vos factures des mois precedents</p>
+        <p className="text-sm text-gray-500 mt-1">Vos factures des mois precedents</p>
       </div>
 
       {/* Selection de l'annee */}
-      <div className="card mb-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex items-center justify-between">
           <button
             onClick={() => setSelectedYear((y) => y - 1)}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <p className="text-lg font-semibold">{selectedYear}</p>
+          <p className="text-lg font-bold">{selectedYear}</p>
           <button
             onClick={() => setSelectedYear((y) => Math.min(y + 1, new Date().getFullYear()))}
             disabled={selectedYear >= new Date().getFullYear()}
-            className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+            className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -203,10 +196,10 @@ export function ClientHistorique() {
       </div>
 
       {/* Total annuel */}
-      <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl p-5 text-white mb-4">
-        <p className="text-purple-100 text-sm">Total facture {selectedYear}</p>
-        <p className="text-3xl font-bold mt-1">{totalAnnuel.toFixed(2)}€</p>
-        <p className="text-purple-200 text-xs mt-2">{totalInterventions} intervention(s)</p>
+      <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl p-5 text-white mb-6">
+        <p className="text-purple-200 text-sm">Total facturé en {selectedYear}</p>
+        <p className="text-4xl font-bold mt-1">{totalAnnuel.toFixed(2)}€</p>
+        <p className="text-purple-200 text-sm mt-2">{totalInterventions} intervention(s)</p>
       </div>
 
       {/* Liste des mois */}
@@ -223,15 +216,18 @@ export function ClientHistorique() {
       ) : (
         <div className="space-y-3">
           {historique.map((month) => (
-            <div key={month.month}>
-              <div
-                className="card cursor-pointer hover:bg-gray-50 transition-colors"
+            <div key={month.month} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <button
+                className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
                 onClick={() => fetchMonthDetails(month.month)}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-5 h-5 text-purple-600" />
+                  </div>
                   <div>
                     <p className="font-semibold capitalize">{formatMonthName(month.month)}</p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                       <CheckCircle className="w-3 h-3" />
                       {month.interventions} intervention(s)
                     </p>
@@ -241,40 +237,40 @@ export function ClientHistorique() {
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <p className={`text-xl font-bold ${month.facture > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
-                      {month.facture.toFixed(2)}€
-                    </p>
-                    <ChevronDown
-                      className={`w-5 h-5 text-gray-400 transition-transform ${
-                        selectedMonth === month.month ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </div>
                 </div>
-              </div>
+                <div className="flex items-center gap-3">
+                  <span className={`text-xl font-bold ${month.facture > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
+                    {month.facture.toFixed(2)}€
+                  </span>
+                  <ChevronDown
+                    className={`w-5 h-5 text-gray-400 transition-transform ${
+                      selectedMonth === month.month ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </button>
 
               {/* Detail des interventions du mois */}
               {selectedMonth === month.month && (
-                <div className="mt-2 ml-2 border-l-2 border-purple-200 pl-4 space-y-2 pb-2">
+                <div className="px-4 pb-4 border-t border-gray-100">
                   {loadingDetails ? (
                     <div className="flex justify-center py-4">
                       <Loader size="sm" />
                     </div>
                   ) : (
-                    <>
+                    <div className="space-y-2 pt-3">
                       {/* Interventions */}
                       {monthDetails.length === 0 ? (
                         <p className="text-sm text-gray-500 py-2">Aucune intervention ce mois.</p>
                       ) : (
                         <>
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider pt-1">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                             Interventions
                           </p>
                           {monthDetails.map((intervention: any) => (
                             <div
                               key={intervention.id}
-                              className="bg-white border border-gray-200 rounded-lg p-3"
+                              className="bg-gray-50 rounded-lg p-3"
                             >
                               <div className="flex items-center justify-between">
                                 <div>
@@ -311,13 +307,13 @@ export function ClientHistorique() {
                       {/* Forfaits blanchisserie */}
                       {forfaitsLogements.length > 0 && (
                         <>
-                          <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wider pt-2">
+                          <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider pt-2">
                             🧺 Forfaits blanchisserie mensuels
                           </p>
                           {forfaitsLogements.map((forfait, idx) => (
                             <div
                               key={idx}
-                              className="bg-indigo-50 border border-indigo-200 rounded-lg p-3"
+                              className="bg-indigo-50 rounded-lg p-3 border border-indigo-100"
                             >
                               <div className="flex items-center justify-between">
                                 <div>
@@ -335,7 +331,7 @@ export function ClientHistorique() {
                           ))}
                         </>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               )}
