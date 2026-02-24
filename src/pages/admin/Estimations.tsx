@@ -19,6 +19,7 @@ interface PrestataireCharge {
   id: string;
   full_name: string;
   nbMissions: number;
+  caEstime: number;
   charge: 'sous-utilisé' | 'équilibré' | 'surchargé';
 }
 
@@ -113,17 +114,20 @@ export function AdminEstimations() {
     revenuEstime += forfaitTotal;
     const gainEstime = revenuEstime - coutPrestataires;
 
-    // Charge par prestataire
-    const prestaMap = new Map<string, { full_name: string; count: number }>();
+    // Charge et CA par prestataire
+    const prestaMap = new Map<string, { full_name: string; count: number; ca: number }>();
     data.forEach((i: any) => {
       if (i.prestataire_id && i.prestataire) {
         const existing = prestaMap.get(i.prestataire_id);
+        const prixPresta = i.prix_prestataire_ht || 0;
         if (existing) {
           existing.count++;
+          existing.ca += prixPresta;
         } else {
           prestaMap.set(i.prestataire_id, {
             full_name: i.prestataire.full_name,
             count: 1,
+            ca: prixPresta,
           });
         }
       }
@@ -134,6 +138,7 @@ export function AdminEstimations() {
       id,
       full_name: p.full_name,
       nbMissions: p.count,
+      caEstime: p.ca,
       charge: p.count < 5 ? 'sous-utilisé' : p.count > 15 ? 'surchargé' : 'équilibré',
     }));
 
@@ -292,12 +297,12 @@ export function AdminEstimations() {
             </div>
           )}
 
-          {/* Charge par prestataire */}
+          {/* Charge et CA par prestataire */}
           {estimation.prestataires.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
               <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Users className="w-5 h-5 text-gray-400" />
-                Charge par prestataire
+                Charge et CA par prestataire
               </h2>
               <div className="space-y-4">
                 {estimation.prestataires.map((presta) => {
@@ -305,9 +310,14 @@ export function AdminEstimations() {
                   // Barre de charge: max = 20 missions pour 100%
                   const barWidth = Math.min((presta.nbMissions / 20) * 100, 100);
                   return (
-                    <div key={presta.id}>
+                    <div key={presta.id} className="pb-4 border-b border-gray-100 last:border-0 last:pb-0">
                       <div className="flex items-center justify-between mb-1.5">
-                        <p className="font-medium text-sm text-gray-900">{presta.full_name}</p>
+                        <div>
+                          <p className="font-medium text-sm text-gray-900">{presta.full_name}</p>
+                          <p className="text-xs text-emerald-600 font-semibold mt-0.5">
+                            CA estimé : {formatCurrency(presta.caEstime)}
+                          </p>
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-gray-700">{presta.nbMissions} missions</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors.bg} ${colors.text}`}>
