@@ -63,6 +63,7 @@ export function AdminDashboard() {
   // Stats
   const [stats, setStats] = useState({
     interventionsToday: 0,
+    interventionsTodayDone: 0,
     interventionsToAssign: 0,
     activeClients: 0,
     totalLogements: 0,
@@ -103,6 +104,13 @@ export function AdminDashboard() {
           .from('interventions')
           .select('*', { count: 'exact', head: true })
           .eq('date', today);
+
+        // Interventions du jour terminées
+        const { count: todayDoneCount } = await supabase
+          .from('interventions')
+          .select('*', { count: 'exact', head: true })
+          .eq('date', today)
+          .eq('status', 'terminee');
 
         // Interventions à attribuer
         const { count: toAssignCount } = await supabase
@@ -189,6 +197,7 @@ export function AdminDashboard() {
 
         setStats({
           interventionsToday: todayCount || 0,
+          interventionsTodayDone: todayDoneCount || 0,
           interventionsToAssign: toAssignCount || 0,
           activeClients: clientsCount || 0,
           totalLogements: logementsCount || 0,
@@ -476,15 +485,31 @@ export function AdminDashboard() {
           iconBgColor="bg-blue-100"
           iconColor="text-blue-600"
         />
-        <StatCard
-          title="Interventions"
-          value={isLoadingStats ? '-' : stats.interventionsToday}
-          icon={ClipboardList}
-          bgColor="bg-sky-50"
-          iconBgColor="bg-sky-100"
-          iconColor="text-sky-600"
-          trend="Aujourd'hui"
-        />
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-4 md:p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Aujourd'hui</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                {isLoadingStats ? '-' : (
+                  <>
+                    <span className={stats.interventionsTodayDone === stats.interventionsToday && stats.interventionsToday > 0 ? 'text-green-600' : 'text-orange-600'}>
+                      {stats.interventionsTodayDone}
+                    </span>
+                    <span className="text-gray-400 text-xl">/{stats.interventionsToday}</span>
+                  </>
+                )}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {isLoadingStats ? '' : stats.interventionsTodayDone === stats.interventionsToday && stats.interventionsToday > 0
+                  ? '✓ Toutes terminées'
+                  : `${stats.interventionsToday - stats.interventionsTodayDone} restante(s)`}
+              </p>
+            </div>
+            <div className="bg-orange-100 p-3 rounded-xl">
+              <ClipboardList className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </div>
         <StatCard
           title="Clients"
           value={isLoadingStats ? '-' : stats.activeClients}

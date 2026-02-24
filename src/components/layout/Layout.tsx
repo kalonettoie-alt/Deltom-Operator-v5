@@ -14,6 +14,7 @@ import {
   UserCog,
   Briefcase,
   BarChart3,
+  TrendingUp,
   LogOut,
 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ const adminNavItems = [
   { to: '/admin/clients', icon: Users, label: 'Clients' },
   { to: '/admin/prestataires', icon: UserCog, label: 'Prestataires' },
   { to: '/admin/historique', icon: BarChart3, label: 'Historique' },
+  { to: '/admin/estimations', icon: TrendingUp, label: 'Estimations' },
 ];
 
 const clientNavItems = [

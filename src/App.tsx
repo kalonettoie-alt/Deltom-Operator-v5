@@ -13,6 +13,7 @@ import { AdminInterventions } from './pages/admin/Interventions';
 import { AdminInterventionDetail } from './pages/admin/InterventionDetail';
 import { AdminCalendar } from './pages/admin/Calendar';
 import { AdminHistorique } from './pages/admin/Historique';
+import { AdminEstimations } from './pages/admin/Estimations';
 
 // Pages Client
 import { ClientDashboard } from './pages/client/Dashboard';
@@ -117,6 +118,7 @@ function App() {
         <Route path="interventions/:id" element={<AdminInterventionDetail />} />
         <Route path="calendrier" element={<AdminCalendar />} />
         <Route path="historique" element={<AdminHistorique />} />
+        <Route path="estimations" element={<AdminEstimations />} />
       </Route>
 
       {/* Routes Client */}

@@ -8,6 +8,7 @@ import {
   Briefcase,
   BarChart3,
   UserCog,
+  TrendingUp,
 } from 'lucide-react';
 
 interface NavItem {
@@ -22,6 +23,7 @@ const adminNavItems: NavItem[] = [
   { to: '/admin/calendrier', label: 'Calendrier', icon: <Calendar className="w-5 h-5" /> },
   { to: '/admin/prestataires', label: 'Prestataires', icon: <UserCog className="w-5 h-5" /> },
   { to: '/admin/historique', label: 'Historique', icon: <BarChart3 className="w-5 h-5" /> },
+  { to: '/admin/estimations', label: 'Estimations', icon: <TrendingUp className="w-5 h-5" /> },
 ];
 
 const clientNavItems: NavItem[] = [
