@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader } from '../ui/Loader';
+import { useAuth } from '../../hooks/useAuth';
+import { canSeeFinancials } from '../../utils/permissions';
 import type { Logement, LogementInsert, Profile, TypeBlanchisserie } from '../../types';
 
 interface LogementFormProps {
@@ -17,6 +19,11 @@ export function LogementForm({
   onCancel,
   isSubmitting = false,
 }: LogementFormProps) {
+  const { profile } = useAuth();
+  // Masque la section Tarification pour les rôles sans accès (ex: support).
+  // formData conserve les prix existants et les renvoie tels quels à l'enregistrement.
+  const showFinancials = canSeeFinancials(profile?.role);
+
   const [formData, setFormData] = useState<LogementInsert & { type_blanchisserie: TypeBlanchisserie }>({
     client_id: '',
     name: '',
@@ -190,7 +197,8 @@ export function LogementForm({
         </div>
       </div>
 
-      {/* Section Tarification */}
+      {/* Section Tarification — masquée pour support (valeurs préservées dans formData) */}
+      {showFinancials && (
       <div className="bg-gray-50 rounded-xl p-4 space-y-4">
         <h3 className="font-semibold text-gray-900 flex items-center gap-2">
           💰 Tarification
@@ -336,6 +344,7 @@ export function LogementForm({
           )}
         </div>
       </div>
+      )}
 
       <div>
         <label htmlFor="access_code" className="block text-sm font-medium text-gray-700 mb-1">

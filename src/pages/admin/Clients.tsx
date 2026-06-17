@@ -7,6 +7,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ClientCard } from '../../components/cards/ClientCard';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { useAuth } from '../../hooks/useAuth';
+import { canSeeFinancials } from '../../utils/permissions';
 import type { Profile, Logement, InterventionWithRelations } from '../../types';
 
 interface ClientStats {
@@ -16,6 +18,9 @@ interface ClientStats {
 }
 
 export function AdminClients() {
+  const { profile } = useAuth();
+  // Masque les chiffres financiers pour les rôles sans accès (ex: support)
+  const showFinancials = canSeeFinancials(profile?.role);
   const { clients, isLoading } = useClients();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<Profile | null>(null);
@@ -192,7 +197,7 @@ export function AdminClients() {
                   <p className="text-xs text-gray-500 mb-3 capitalize">
                     {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
                   </p>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className={`grid ${showFinancials ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
                     <div className="bg-blue-50 rounded-lg p-4 text-center">
                       <TrendingUp className="w-6 h-6 text-blue-600 mx-auto mb-2" />
                       <p className="text-2xl font-bold text-blue-900">{clientStats.totalInterventions}</p>
@@ -203,11 +208,14 @@ export function AdminClients() {
                       <p className="text-2xl font-bold text-green-900">{clientStats.interventionsTerminees}</p>
                       <p className="text-sm text-green-600">Terminees</p>
                     </div>
+                    {/* Facture TTC masquée pour support */}
+                    {showFinancials && (
                     <div className="bg-purple-50 rounded-lg p-4 text-center">
                       <Receipt className="w-6 h-6 text-purple-600 mx-auto mb-2" />
                       <p className="text-2xl font-bold text-purple-900">{clientStats.totalFacture.toFixed(0)}€</p>
                       <p className="text-sm text-purple-600">Facture TTC</p>
                     </div>
+                    )}
                   </div>
                 </div>
 
@@ -227,7 +235,7 @@ export function AdminClients() {
                           <p className="text-sm text-gray-600">
                             {logement.address}, {logement.postal_code} {logement.city}
                           </p>
-                          {(logement.prix_prestataire_ht || logement.prix_client_ttc) && (
+                          {showFinancials && (logement.prix_prestataire_ht || logement.prix_client_ttc) && (
                             <p className="text-xs text-gray-500 mt-1">
                               Prix: {logement.prix_prestataire_ht ?? 0}€ HT / {logement.prix_client_ttc ?? 0}€ TTC
                             </p>

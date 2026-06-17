@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { Loader } from '../ui/Loader';
+import { useAuth } from '../../hooks/useAuth';
+import { canSeeFinancials } from '../../utils/permissions';
 import { InterventionTypeLabels } from '../../types';
 import type {
   Intervention,
@@ -31,6 +33,11 @@ export function InterventionForm({
   prefilledDate,
   prefilledLogement,
 }: InterventionFormProps) {
+  const { profile } = useAuth();
+  // Masque l'affichage financier pour les rôles sans accès (ex: support).
+  // N'impacte PAS handleSubmit : les prix sont dérivés du logement à l'enregistrement.
+  const showFinancials = canSeeFinancials(profile?.role);
+
   // Initialiser avec les valeurs pré-remplies si fournies
   const initialLogement = prefilledLogement || '';
   const initialDate = prefilledDate || new Date().toISOString().split('T')[0];
@@ -241,8 +248,8 @@ export function InterventionForm({
         {errors.logement_id && <p className="text-red-500 text-sm mt-1">{errors.logement_id}</p>}
       </div>
 
-      {/* Récapitulatif tarification */}
-      {selectedLogement && ((selectedLogement.prix_prestataire_ht ?? 0) > 0 || (selectedLogement.prix_client_ttc ?? 0) > 0) && (
+      {/* Récapitulatif tarification (lecture seule — masqué pour support) */}
+      {showFinancials && selectedLogement && ((selectedLogement.prix_prestataire_ht ?? 0) > 0 || (selectedLogement.prix_client_ttc ?? 0) > 0) && (
         <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
           <h4 className="font-semibold text-blue-900 mb-3">📋 Recapitulatif tarification</h4>
 

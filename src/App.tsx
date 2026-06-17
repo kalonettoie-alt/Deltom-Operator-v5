@@ -32,6 +32,20 @@ import { ProviderHistorique } from './pages/provider/Historique';
 import type { UserRole } from './types';
 import type { ReactNode } from 'react';
 
+// Page d'accueil par défaut selon le rôle
+// support partage l'espace admin
+function roleHomePath(role: UserRole): string {
+  switch (role) {
+    case 'admin':
+    case 'support':
+      return '/admin';
+    case 'client':
+      return '/client';
+    case 'prestataire':
+      return '/prestataire';
+  }
+}
+
 // Composant pour protéger les routes par rôle
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -47,11 +61,7 @@ function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
 
   if (!allowedRoles.includes(profile.role)) {
     // Rediriger vers le dashboard approprié
-    const redirectPath = profile.role === 'admin'
-      ? '/admin'
-      : profile.role === 'client'
-        ? '/client'
-        : '/prestataire';
+    const redirectPath = roleHomePath(profile.role);
     return <Navigate to={redirectPath} replace />;
   }
 
@@ -66,16 +76,7 @@ function RoleBasedRedirect() {
     return <Navigate to="/login" replace />;
   }
 
-  switch (profile.role) {
-    case 'admin':
-      return <Navigate to="/admin" replace />;
-    case 'client':
-      return <Navigate to="/client" replace />;
-    case 'prestataire':
-      return <Navigate to="/prestataire" replace />;
-    default:
-      return <Navigate to="/login" replace />;
-  }
+  return <Navigate to={roleHomePath(profile.role)} replace />;
 }
 
 function App() {
@@ -105,7 +106,7 @@ function App() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={['admin', 'support']}>
             <Layout />
           </ProtectedRoute>
         }
@@ -118,7 +119,15 @@ function App() {
         <Route path="interventions/:id" element={<AdminInterventionDetail />} />
         <Route path="calendrier" element={<AdminCalendar />} />
         <Route path="historique" element={<AdminHistorique />} />
-        <Route path="estimations" element={<AdminEstimations />} />
+        {/* Estimations: page financière réservée à admin (support redirigé vers /admin) */}
+        <Route
+          path="estimations"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminEstimations />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* Routes Client */}

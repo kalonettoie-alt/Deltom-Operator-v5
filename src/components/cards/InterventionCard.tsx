@@ -2,6 +2,8 @@ import { Calendar, MapPin, Users, Baby, Clock, Edit2, Trash2, Zap, Euro } from '
 import { StatusBadge } from '../ui/StatusBadge';
 import { InterventionTypeLabels } from '../../types';
 import type { InterventionWithRelations } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
+import { canSeeFinancials } from '../../utils/permissions';
 
 interface InterventionCardProps {
   intervention: InterventionWithRelations;
@@ -24,6 +26,8 @@ export function InterventionCard({
   showPrestataire = true,
   showTarification = false,
 }: InterventionCardProps) {
+  const { profile } = useAuth();
+
   // Calcul du gain pour cette intervention
   const prixClient = intervention.prix_client_ttc || 0;
   const prixPrestataire = intervention.prix_prestataire_ht || 0;
@@ -131,8 +135,8 @@ export function InterventionCard({
             </div>
           )}
 
-          {/* Tarification */}
-          {showTarification && (prixClient > 0 || prixPrestataire > 0) && (
+          {/* Tarification — masquée pour les rôles sans accès financier (ex: support) */}
+          {showTarification && canSeeFinancials(profile?.role) && (prixClient > 0 || prixPrestataire > 0) && (
             <div className="mt-3 pt-3 border-t border-gray-100">
               <div className="flex items-center gap-2 mb-2">
                 <Euro className="w-4 h-4 text-gray-400" />

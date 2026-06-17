@@ -46,8 +46,14 @@ const prestataireNavItems: NavItem[] = [
   { to: '/prestataire/historique', label: 'Historique', icon: <BarChart3 className="w-5 h-5" /> },
 ];
 
+// Support = même navigation qu'admin, sans Estimations (page financière)
+const supportNavItems: NavItem[] = adminNavItems.filter(
+  (item) => item.to !== '/admin/estimations'
+);
+
 const navItemsByRole: Record<UserRole, NavItem[]> = {
   admin: adminNavItems,
+  support: supportNavItems,
   client: clientNavItems,
   prestataire: prestataireNavItems,
 };

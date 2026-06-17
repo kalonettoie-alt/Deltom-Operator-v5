@@ -1,5 +1,6 @@
 // Rôles utilisateur
-export type UserRole = 'admin' | 'client' | 'prestataire';
+// 'support' = accès opérationnel complet aux pages admin, sans aucun chiffre financier
+export type UserRole = 'admin' | 'support' | 'client' | 'prestataire';
 
 // Statuts d'intervention
 // Flux: a_attribuer → assignee → acceptee → en_cours → terminee
@@ -12,6 +13,7 @@ export type InterventionType = 'standard' | 'intendance';
 // Labels pour l'affichage
 export const UserRoleLabels: Record<UserRole, string> = {
   admin: 'Administrateur',
+  support: 'Support',
   client: 'Client',
   prestataire: 'Prestataire',
 };

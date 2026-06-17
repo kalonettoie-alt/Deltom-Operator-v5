@@ -78,11 +78,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const signUp = async (email: string, password: string, fullName: string, role: UserRole) => {
-    // Vérification: seuls client et prestataire peuvent s'inscrire
-    if (role === 'admin') {
+    // Vérification: seuls client et prestataire peuvent s'inscrire.
+    // admin et support sont créés manuellement uniquement.
+    if (role === 'admin' || role === 'support') {
       return {
         error: {
-          message: "L'inscription en tant qu'admin n'est pas autorisée",
+          message: "L'inscription en tant qu'admin ou support n'est pas autorisée",
           name: 'AuthError',
           status: 400,
         } as AuthError,

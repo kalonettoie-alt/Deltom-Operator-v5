@@ -8,6 +8,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Loader } from '../../components/ui/Loader';
 import { InterventionForm } from '../../components/forms/InterventionForm';
 import { InterventionCard } from '../../components/cards/InterventionCard';
+import { canSeeFinancials } from '../../utils/permissions';
 import {
   Users,
   Building2,
@@ -57,6 +58,8 @@ const StatCard = ({ title, value, icon: Icon, bgColor, iconBgColor, iconColor, t
 export function AdminDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
+  // Masque tous les chiffres financiers pour les rôles sans accès (ex: support)
+  const showFinancials = canSeeFinancials(profile?.role);
   const { logements, isLoading: isLoadingLogements } = useLogements({ withClient: true });
   const { prestataires, isLoading: isLoadingPrestataires } = usePrestataires();
 
@@ -323,7 +326,8 @@ export function AdminDashboard() {
         </button>
       </div>
 
-      {/* Carte Gain du mois - Cliquable pour voir le détail */}
+      {/* Carte Gain du mois - Cliquable pour voir le détail (masquée pour support) */}
+      {showFinancials && (
       <div
         className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 md:p-6 text-white mb-6 cursor-pointer hover:from-emerald-600 hover:to-teal-700 transition-all"
         onClick={toggleGainDetail}
@@ -351,9 +355,10 @@ export function AdminDashboard() {
           Cliquez pour {showGainDetail ? 'masquer' : 'voir'} le detail
         </p>
       </div>
+      )}
 
-      {/* Détail des interventions du gain */}
-      {showGainDetail && (
+      {/* Détail des interventions du gain (masqué pour support) */}
+      {showFinancials && showGainDetail && (
         <div className="card mb-6 max-h-96 overflow-y-auto">
           <h3 className="font-semibold text-gray-900 mb-3">Interventions terminees du mois</h3>
 
@@ -416,8 +421,8 @@ export function AdminDashboard() {
         </div>
       )}
 
-      {/* Détail des revenus du mois */}
-      {!isLoadingStats && (stats.totalFactureClient > 0 || stats.totalBlanchisserie > 0) && (
+      {/* Détail des revenus du mois (masqué pour support) */}
+      {showFinancials && !isLoadingStats && (stats.totalFactureClient > 0 || stats.totalBlanchisserie > 0) && (
         <div className="card mb-6">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-gray-400" />

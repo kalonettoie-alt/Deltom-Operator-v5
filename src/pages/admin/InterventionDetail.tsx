@@ -6,6 +6,8 @@ import { Loader } from '../../components/ui/Loader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { ImageLightbox } from '../../components/ui/ImageLightbox';
 import { InterventionTypeLabels } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
+import { canSeeFinancials } from '../../utils/permissions';
 
 interface TacheRapport {
   id: string;
@@ -16,7 +18,10 @@ interface TacheRapport {
 export function AdminInterventionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const { intervention, isLoading, error } = useIntervention(id || '');
+  // Masque les chiffres financiers pour les rôles sans accès (ex: support)
+  const showFinancials = canSeeFinancials(profile?.role);
 
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -250,7 +255,8 @@ export function AdminInterventionDetail() {
           </div>
         )}
 
-        {/* Tarification */}
+        {/* Tarification (masquée pour support) */}
+        {showFinancials && (
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Tarification</h2>
           <div className="space-y-2">
@@ -264,6 +270,7 @@ export function AdminInterventionDetail() {
             </p>
           </div>
         </div>
+        )}
 
         {/* Photos etat des lieux */}
         {intervention.photos_etat_lieux && (intervention.photos_etat_lieux as string[]).length > 0 && (

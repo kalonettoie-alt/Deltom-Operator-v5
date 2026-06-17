@@ -7,6 +7,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { PrestataireCard } from '../../components/cards/PrestataireCard';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { useAuth } from '../../hooks/useAuth';
+import { canSeeFinancials } from '../../utils/permissions';
 import type { Profile, InterventionWithRelations } from '../../types';
 
 interface PrestataireStats {
@@ -17,6 +19,9 @@ interface PrestataireStats {
 }
 
 export function AdminPrestataires() {
+  const { profile } = useAuth();
+  // Masque les chiffres financiers pour les rôles sans accès (ex: support)
+  const showFinancials = canSeeFinancials(profile?.role);
   const { prestataires, isLoading } = usePrestataires();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPrestataire, setSelectedPrestataire] = useState<Profile | null>(null);
@@ -213,6 +218,8 @@ export function AdminPrestataires() {
                       </div>
                       <p className="text-2xl font-bold text-green-800">{prestataireStats.missionsTerminees}</p>
                     </div>
+                    {/* Revenus générés masqués pour support */}
+                    {showFinancials && (
                     <div className="bg-blue-50 rounded-lg p-4">
                       <div className="flex items-center gap-2 text-blue-700 mb-1">
                         <Euro className="w-5 h-5" />
@@ -220,6 +227,7 @@ export function AdminPrestataires() {
                       </div>
                       <p className="text-2xl font-bold text-blue-800">{prestataireStats.revenusGeneres.toFixed(2)}€</p>
                     </div>
+                    )}
                     <div className="bg-red-50 rounded-lg p-4">
                       <div className="flex items-center gap-2 text-red-700 mb-1">
                         <XCircle className="w-5 h-5" />
@@ -252,7 +260,8 @@ export function AdminPrestataires() {
                           <div>
                             <p className="font-medium text-gray-900">{intervention.logement?.name}</p>
                             <p className="text-sm text-gray-600">
-                              {new Date(intervention.date).toLocaleDateString('fr-FR')} - {intervention.prix_prestataire_ht}€ HT
+                              {new Date(intervention.date).toLocaleDateString('fr-FR')}
+                              {showFinancials && ` - ${intervention.prix_prestataire_ht}€ HT`}
                             </p>
                           </div>
                           <StatusBadge status={intervention.status} />

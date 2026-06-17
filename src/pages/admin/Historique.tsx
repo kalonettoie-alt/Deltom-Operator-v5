@@ -7,6 +7,8 @@ import {
   Filter, ChevronLeft, ChevronRight, BarChart3,
 } from 'lucide-react';
 import { Loader } from '../../components/ui/Loader';
+import { useAuth } from '../../hooks/useAuth';
+import { canSeeFinancials } from '../../utils/permissions';
 
 interface BlanchisserieIntervDetail {
   logement: string;
@@ -75,6 +77,9 @@ function VariationBadge({ current, previous }: { current: number; previous: numb
 }
 
 export function AdminHistorique() {
+  const { profile } = useAuth();
+  // Masque tous les chiffres financiers pour les rôles sans accès (ex: support)
+  const showFinancials = canSeeFinancials(profile?.role);
   const { logements } = useLogements({ withClient: true });
   const { clients } = useClients();
   const { prestataires } = usePrestataires();
@@ -377,7 +382,7 @@ export function AdminHistorique() {
       ) : stats && (
         <>
           {/* Stats principales */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div className={`grid grid-cols-2 ${showFinancials ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-3 mb-4`}>
             <div className="card">
               <p className="text-xs text-gray-500">Interventions</p>
               <p className="text-xl md:text-2xl font-bold text-blue-600">{stats.interventionsCount}</p>
@@ -388,6 +393,9 @@ export function AdminHistorique() {
               <p className="text-xl md:text-2xl font-bold text-green-600">{stats.interventionsTerminees}</p>
               {compareStats && <VariationBadge current={stats.interventionsTerminees} previous={compareStats.interventionsTerminees} />}
             </div>
+            {/* Facture clients + Gain net masqués pour support */}
+            {showFinancials && (
+            <>
             <div className="card">
               <p className="text-xs text-gray-500">Facture clients</p>
               <p className="text-xl md:text-2xl font-bold text-purple-600">{stats.totalFactureClient.toFixed(0)}€</p>
@@ -398,8 +406,12 @@ export function AdminHistorique() {
               <p className="text-xl md:text-2xl font-bold text-emerald-700">{stats.gainTotal.toFixed(0)}€</p>
               {compareStats && <VariationBadge current={stats.gainTotal} previous={compareStats.gainTotal} />}
             </div>
+            </>
+            )}
           </div>
 
+          {/* Sections financières (Ménages, Blanchisserie, Récapitulatif) masquées pour support */}
+          {showFinancials && (<>
           {/* SECTION 1 : MENAGES */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-4">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
@@ -503,6 +515,7 @@ export function AdminHistorique() {
               </div>
             </div>
           </div>
+          </>)}
 
           {/* Stats par prestataire */}
           <div className="card mb-4">
@@ -520,7 +533,7 @@ export function AdminHistorique() {
                       <p className="font-medium text-sm">{p.name}</p>
                       <p className="text-xs text-gray-500">{p.interventions} intervention(s)</p>
                     </div>
-                    <p className="font-semibold text-blue-600 text-sm">{p.revenus.toFixed(2)}€</p>
+                    {showFinancials && <p className="font-semibold text-blue-600 text-sm">{p.revenus.toFixed(2)}€</p>}
                   </div>
                 ))}
               </div>
@@ -543,7 +556,7 @@ export function AdminHistorique() {
                       <p className="font-medium text-sm">{c.name}</p>
                       <p className="text-xs text-gray-500">{c.interventions} intervention(s)</p>
                     </div>
-                    <p className="font-semibold text-green-600 text-sm">{c.facture.toFixed(2)}€</p>
+                    {showFinancials && <p className="font-semibold text-green-600 text-sm">{c.facture.toFixed(2)}€</p>}
                   </div>
                 ))}
               </div>
@@ -566,7 +579,7 @@ export function AdminHistorique() {
                       <p className="font-medium text-sm">{l.name}</p>
                       <p className="text-xs text-gray-500">{l.interventions} intervention(s)</p>
                     </div>
-                    <p className="font-semibold text-purple-600 text-sm">{l.revenus.toFixed(2)}€</p>
+                    {showFinancials && <p className="font-semibold text-purple-600 text-sm">{l.revenus.toFixed(2)}€</p>}
                   </div>
                 ))}
               </div>
